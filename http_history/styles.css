@@ -1,0 +1,174 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #2d2d2d;
+    color: #ffffff;
+}
+
+h1 {
+    color: #ffa500;
+    margin-bottom: 20px;
+}
+
+#historyTable {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #3c3c3c;
+}
+
+#historyTable {
+    table-layout: fixed;
+}
+
+#historyTable th, #historyTable td {
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #555555;
+    position: relative;
+}
+
+.resize-handle {
+    position: absolute;
+    top: 0;
+    right: -5px;
+    width: 10px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 1;
+}
+
+#historyTable th {
+    background-color: #444444;
+    color: #ffffff;
+}
+
+#historyTable tbody tr:hover {
+    background-color: #4f4f4f;
+}
+
+.method {
+    font-weight: bold;
+    color: #ffa500;
+}
+
+.status {
+    color: #00ff00;
+}
+
+.status-error {
+    color: #ff0000;
+}
+
+.size {
+    color: #add8e6;
+}
+
+.time {
+    color: #ffff00;
+}
+
+#filterControls {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #3c3c3c;
+    border: 1px solid #555555;
+}
+
+#filterControls label {
+    margin-right: 10px;
+    color: #ffa500;
+}
+
+#filterControls select,
+#filterControls input {
+    margin-right: 20px;
+    padding: 5px;
+    background-color: #2d2d2d;
+    border: 1px solid #555555;
+    color: #ffffff;
+}
+
+#bodyDisplay {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #3c3c3c;
+    border: 1px solid #555555;
+}
+
+#bodyDisplay h3 {
+    color: #ffa500;
+    margin-bottom: 10px;
+}
+
+#mainContainer {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+#tableContainer {
+    flex: 1;
+    overflow: auto;
+    margin-bottom: 20px;
+}
+
+#splitContainer {
+    display: flex;
+    height: 250px;
+}
+
+#verticalResizeHandle {
+    position: relative;
+    height: 10px;
+    background-color: #555555;
+    cursor: ns-resize;
+    margin-bottom: 20px;
+}
+
+.split-panel {
+    flex: 1;
+    overflow: auto;
+}
+
+#resizeHandle {
+    width: 10px;
+    background-color: #555555;
+    cursor: ew-resize;
+}
+
+#bodyDisplay pre, .split-panel pre {
+    background-color: #2d2d2d;
+    padding: 10px;
+    border-radius: 3px;
+    overflow-x: auto;
+    margin: 0;
+    height: calc(100% - 40px);
+}
+
+.header-display,
+.body-display {
+    margin-bottom: 20px;
+}
+
+.header-display h4,
+.body-display h4 {
+    color: #ffa500;
+    margin-bottom: 5px;
+}
+
+.split-panel h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.split-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+.header-display pre,
+.body-display pre {
+    height: auto;
+    max-height: 150px;
+    overflow-y: auto;
+}
