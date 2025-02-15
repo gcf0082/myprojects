@@ -1,0 +1,36 @@
+{
+  "files": [
+    {
+      "filename": "/path/to/new_file.txt",
+      "status": "added",
+      "size": 1024,
+      "permissions": "-rw-r--r--",
+      "owner": "user1",
+      "last_modified": "2025-01-24T10:30:00Z"
+    },
+    {
+      "filename": "/path/to/deleted_file.txt",
+      "status": "deleted",
+      "size": 2048,
+      "permissions": "-rwxr-xr-x",
+      "owner": "user2",
+      "last_modified": "2025-01-23T15:45:00Z"
+    },
+    {
+      "filename": "/path/to/modified_file.txt",
+      "status": "modified",
+      "size": 4096,
+      "permissions": "-rw-rw-r--",
+      "owner": "user3",
+      "last_modified": "2025-01-25T08:15:00Z"
+    },
+    {
+      "filename": "/path/to/unchanged_file.txt",
+      "status": "unchanged",
+      "size": 512,
+      "permissions": "-rw-r--r--",
+      "owner": "user4",
+      "last_modified": "2025-01-20T12:00:00Z"
+    }
+  ]
+}

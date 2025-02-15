@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可调节窗口大小</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+        }
+        .panel {
+            height: 100%;
+            overflow: auto;
+        }
+        #left {
+            background-color: yellow;
+            width: calc(50% - 5px);
+        }
+        #right {
+            background-color: burlywood;
+            width: calc(50% - 5px);
+        }
+        .divider {
+            width: 5px;
+            background-color: #ccc;
+            cursor: ew-resize;
+        }
+    </style>
+</head>
+<body>
+    <div id="left" class="panel"></div>
+    <div class="divider" id="divider"></div>
+    <div id="right" class="panel"></div>
+
+    <script>
+        const divider = document.getElementById('divider');
+        let isDragging = false;
+
+        divider.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            const leftPanel = document.getElementById('left');
+            const rightPanel = document.getElementById('right');
+            const containerWidth = document.body.offsetWidth;
+            
+            let newLeftWidth = e.clientX;
+            if (newLeftWidth < 100) newLeftWidth = 100;
+            if (newLeftWidth > containerWidth - 100) newLeftWidth = containerWidth - 100;
+            
+            leftPanel.style.width = newLeftWidth + 'px';
+            rightPanel.style.width = (containerWidth - newLeftWidth - 10) + 'px';
+        });
+
+        document.addEventListener('mouseup', function() {
+            isDragging = false;
+            document.body.style.userSelect = '';
+        });
+    </script>
+</body>
+</html>

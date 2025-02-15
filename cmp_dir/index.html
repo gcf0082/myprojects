@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>目录差异比较</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="header">
+        <h1>目录差异比较</h1>
+        <div class="filters">
+        <select id="filter-type" multiple>
+            <option value="added" selected>新增</option>
+            <option value="deleted" selected>删除</option>
+            <option value="modified" selected>修改</option>
+            <option value="unchanged">未改变</option>
+        </select>
+            <input type="text" id="filter-input" placeholder="按路径过滤...">
+        </div>
+    </div>
+    <div class="diff-content">
+        <div class="category" data-status="added">
+            <div class="category-header">新增文件</div>
+            <div class="category-content"></div>
+        </div>
+        <div class="category" data-status="deleted">
+            <div class="category-header">删除文件</div>
+            <div class="category-content"></div>
+        </div>
+        <div class="category" data-status="modified">
+            <div class="category-header">修改文件</div>
+            <div class="category-content"></div>
+        </div>
+        <div class="category" data-status="unchanged">
+            <div class="category-header">未改变文件</div>
+            <div class="category-content"></div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

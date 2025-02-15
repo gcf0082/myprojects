@@ -1,0 +1,18 @@
+/* 基本样式 */
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* 边样式 */
+.call-edge {
+  cursor: crosshair;
+  stroke-width: 2px;
+  stroke: #999;
+}
+
+.call-edge:hover {
+  stroke: #333;
+  stroke-width: 3px;
+}

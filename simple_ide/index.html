@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Simple IDE</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #sidebar {
+            width: 300px;
+            background: #2d2d2d;
+            color: #fff;
+            overflow: auto;
+            position: relative;
+        }
+
+        #resizer {
+            width: 5px;
+            background: #666;
+            cursor: col-resize;
+        }
+
+        #content {
+            flex: 1;
+            background: #1e1e1e;
+            color: #fff;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        .file-item {
+            padding: 5px 10px;
+            cursor: pointer;
+            display: block;
+        }
+
+        .file-item:hover {
+            background: #3d3d3d;
+        }
+
+        .folder {
+            padding-left: 15px;
+        }
+
+        .tab {
+            padding: 8px 25px 8px 15px;
+            margin-right: 5px;
+            background: #333;
+            cursor: pointer;
+            position: relative;
+            border-radius: 3px 3px 0 0;
+        }
+
+        .tab-close {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            line-height: 16px;
+            text-align: center;
+            border-radius: 50%;
+            display: none;
+        }
+
+        .tab:hover .tab-close {
+            display: block;
+            background: #666;
+        }
+
+        .tab-close:hover {
+            background: #888;
+        }
+
+        .tab-container {
+            display: flex;
+            background: #2d2d2d;
+            padding: 5px;
+        }
+
+        .tab.active {
+            background: #1e1e1e;
+        }
+
+        .search-box {
+            padding: 10px;
+            background: #333;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        #treeSearch {
+            width: 100%;
+            padding: 5px;
+            background: #444;
+            border: none;
+            color: white;
+        }
+
+        .code-container {
+            display: flex;
+            overflow: auto;
+            position: relative;
+        }
+
+        .line-numbers {
+            padding: 20px 5px;
+            background: #252526;
+            text-align: right;
+            user-select: none;
+        }
+
+        .line-number {
+            padding: 0 10px;
+            color: #858585;
+        }
+
+        .code-content {
+            flex: 1;
+            padding: 20px 0;
+        }
+
+        .code-line {
+            padding: 0 20px;
+        }
+
+        .highlight-line {
+            background: #264F78;
+            box-shadow: inset 3px 0 0 #007ACC;
+        }
+
+        .highlight-line .line-number {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="sidebar">
+            <div class="search-box">
+                <input type="text" id="treeSearch" placeholder="Filter files...">
+            </div>
+        </div>
+        <div id="resizer"></div>
+        <div id="content">
+            <div class="tab-container" id="tabContainer"></div>
+            <div class="code-container" id="codeContainer">
+                <div class="line-numbers" id="lineNumbers"></div>
+                <div class="code-content" id="codeContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const mockData = {
+            name: "root",
+            children: [
+                {
+                    name: "src",
+                    type: "folder",
+                    children: [
+                        { name: "index.js", type: "file", content: "console.log('Hello World');" },
+                        { name: "utils.js", type: "file", content: "function add(a, b) {\n  return a + b;\n}" }
+                    ]
+                },
+                {
+                    name: "public",
+                    type: "folder",
+                    children: [
+                        { name: "style.css", type: "file", content: "body { margin: 0; }" }
+                    ]
+                }
+            ]
+        };
+
+        let isDragging = false;
+        let sidebarWidth = 300;
+        let openTabs = [];
+        let activeTab = null;
+
+        function init() {
+            renderFileTree(mockData, document.getElementById('sidebar'));
+            setupResizer();
+            handleUrlParams();
+            setupTreeSearch();
+        }
+
+        function renderFileTree(data, container, level = 0) {
+            const ul = document.createElement('ul');
+            ul.style.paddingLeft = level > 0 ? '15px' : '0';
+            
+            data.children.forEach(item => {
+                const li = document.createElement('li');
+                li.className = `file-item ${item.type}`;
+                li.textContent = item.name;
+                li.dataset.path = item.name;
+                
+                if (item.type === 'folder') {
+                    li.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        toggleFolder(li, item)
+                    });
+                    li.style.cursor = 'pointer';
+                    const childUl = renderFileTree(item, li, level + 1);
+                    childUl.style.display = 'none';
+                } else {
+                    li.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openFileInNewTab(item);
+                    });
+                }
+                
+                ul.appendChild(li);
+            });
+            
+            container.appendChild(ul);
+            return ul;
+        }
+
+        function setupTreeSearch() {
+            const searchInput = document.getElementById('treeSearch');
+            searchInput.addEventListener('input', debounce(function(e) {
+                const keyword = e.target.value.trim().toLowerCase();
+                if (keyword) {
+                    applyTreeFilter(keyword);
+                } else {
+                    resetTreeFilter();
+                }
+            }, 300));
+        }
+
+        function applyTreeFilter(keyword) {
+            const allItems = document.querySelectorAll('#sidebar .file-item');
+            
+            allItems.forEach(item => {
+                item.style.display = 'none';
+                if (item.classList.contains('folder')) {
+                    const ul = item.querySelector('ul');
+                    if (ul) ul.style.display = 'none';
+                }
+            });
+
+            const matches = Array.from(allItems).filter(item => 
+                item.textContent.toLowerCase().includes(keyword)
+            );
+
+            matches.forEach(item => {
+                showItemAndParents(item);
+                if (item.classList.contains('folder')) {
+                    const ul = item.querySelector('ul');
+                    if (ul) ul.style.display = 'block';
+                }
+            });
+
+            allItems.forEach(item => {
+                if (item.classList.contains('folder')) {
+                    const hasVisibleChild = Array.from(item.querySelectorAll('.file-item'))
+                        .some(child => child.style.display === 'block');
+                    if (hasVisibleChild) {
+                        showItemAndParents(item);
+                        const ul = item.querySelector('ul');
+                        if (ul) ul.style.display = 'block';
+                    }
+                }
+            });
+        }
+
+        function showItemAndParents(item) {
+            let current = item;
+            while (current) {
+                current.style.display = 'block';
+                current = current.parentElement.closest('.file-item');
+            }
+        }
+
+        function resetTreeFilter() {
+            const allItems = document.querySelectorAll('#sidebar .file-item');
+            allItems.forEach(item => {
+                item.style.display = 'block';
+                if (item.classList.contains('folder')) {
+                    const ul = item.querySelector('ul');
+                    if (ul) ul.style.display = 'none';
+                }
+            });
+        }
+
+        function openFileInNewTab(file) {
+            if (openTabs.some(tab => tab.file.name === file.name)) {
+                switchTab(openTabs.find(tab => tab.file.name === file.name));
+                return;
+            }
+
+            const tab = {
+                file,
+                element: document.createElement('div')
+            };
+
+            tab.element.className = 'tab';
+            tab.element.innerHTML = `
+                ${file.name}
+                <span class="tab-close">×</span>
+            `;
+
+            tab.element.querySelector('.tab-close').addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeTab(tab);
+            });
+
+            tab.element.addEventListener('click', () => switchTab(tab));
+            
+            openTabs.push(tab);
+            document.getElementById('tabContainer').appendChild(tab.element);
+            switchTab(tab);
+        }
+
+        function switchTab(tab) {
+            if (activeTab) activeTab.element.classList.remove('active');
+            activeTab = tab;
+            tab.element.classList.add('active');
+            
+            document.getElementById('lineNumbers').innerHTML = '';
+            document.getElementById('codeContent').innerHTML = '';
+            
+            const lines = tab.file.content.split('\n');
+            lines.forEach((line, index) => {
+                const lineNumber = index + 1;
+                
+                const numberElem = document.createElement('div');
+                numberElem.className = 'line-number';
+                numberElem.textContent = lineNumber;
+                numberElem.dataset.line = lineNumber;
+                document.getElementById('lineNumbers').appendChild(numberElem);
+                
+                const codeElem = document.createElement('div');
+                codeElem.className = 'code-line';
+                codeElem.dataset.line = lineNumber;
+                codeElem.textContent = line;
+                document.getElementById('codeContent').appendChild(codeElem);
+            });
+
+            handleLineParam();
+            setupScrollSync();
+        }
+
+        function handleLineParam() {
+            const params = new URLSearchParams(window.location.search);
+            const lineNumber = parseInt(params.get('line'));
+            
+            if (lineNumber) {
+                const targetLine = document.querySelector(`[data-line="${lineNumber}"]`);
+                if (targetLine) {
+                    document.querySelectorAll('.highlight-line').forEach(el => {
+                        el.classList.remove('highlight-line');
+                    });
+                    targetLine.classList.add('highlight-line');
+                    targetLine.scrollIntoView({ block: 'center' });
+                }
+            }
+        }
+
+        function setupScrollSync() {
+            const lineNumbers = document.getElementById('lineNumbers');
+            const codeContent = document.getElementById('codeContent');
+            
+            const syncScroll = (source, target) => {
+                target.scrollTop = source.scrollTop;
+            };
+            
+            lineNumbers.addEventListener('scroll', () => syncScroll(lineNumbers, codeContent));
+            codeContent.addEventListener('scroll', () => syncScroll(codeContent, lineNumbers));
+        }
+
+        function closeTab(tab) {
+            const index = openTabs.indexOf(tab);
+            if (index === -1) return;
+
+            tab.element.style.transform = 'scale(0.8)';
+            tab.element.style.opacity = '0';
+            setTimeout(() => {
+                tab.element.remove();
+                openTabs.splice(index, 1);
+                
+                if (tab === activeTab) {
+                    if (openTabs.length > 0) {
+                        switchTab(openTabs[Math.max(index-1, 0)]);
+                    } else {
+                        document.getElementById('fileContent').innerHTML = '';
+                        activeTab = null;
+                    }
+                }
+            }, 200);
+        }
+
+        function toggleFolder(element, item) {
+            const ul = element.querySelector('ul');
+            if (ul) {
+                ul.style.display = ul.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        function setupResizer() {
+            const resizer = document.getElementById('resizer');
+            const sidebar = document.getElementById('sidebar');
+
+            resizer.addEventListener('mousedown', startDrag);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+
+            function startDrag(e) {
+                isDragging = true;
+                document.body.style.cursor = 'col-resize';
+            }
+
+            function drag(e) {
+                if (!isDragging) return;
+                sidebarWidth = e.clientX;
+                sidebar.style.width = `${sidebarWidth}px`;
+            }
+
+            function stopDrag() {
+                isDragging = false;
+                document.body.style.cursor = 'default';
+            }
+        }
+
+        function handleUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const filePath = params.get('file');
+            if (filePath) {
+                setTimeout(() => findAndOpenFile(filePath), 100);
+            }
+        }
+
+        function findAndOpenFile(path) {
+            const pathSegments = path.split('/').filter(p => p);
+            let current = mockData;
+            const pathStack = [];
+
+            for (const segment of pathSegments) {
+                const found = current.children?.find(
+                    item => item.name === segment
+                );
+                if (!found) return;
+                current = found;
+                pathStack.push(current);
+            }
+
+            if (current.type === 'file') {
+                pathStack.slice(0, -1).forEach(item => {
+                    const li = findListItem(item);
+                    if (li) expandFolder(li);
+                });
+                openFileInNewTab(current);
+            }
+        }
+
+        function findListItem(item) {
+            const walker = document.createTreeWalker(
+                document.getElementById('sidebar'),
+                NodeFilter.SHOW_ELEMENT,
+                {
+                    acceptNode: function(node) {
+                        return node.classList?.contains('file-item') ?
+                            NodeFilter.FILTER_ACCEPT :
+                            NodeFilter.FILTER_SKIP;
+                    }
+                }
+            );
+
+            while(walker.nextNode()) {
+                const li = walker.currentNode;
+                if (li.textContent.includes(item.name)) {
+                    return li;
+                }
+            }
+            return null;
+        }
+
+        function expandFolder(li) {
+            const ul = li.querySelector('ul');
+            if (ul) ul.style.display = 'block';
+        }
+
+        function debounce(fn, delay) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+/* 基础样式 */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.header {
+    background-color: #f5f5f5;
+    padding: 20px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.filters {
+    display: flex;
+    gap: 10px;
+}
+
+#filter-type {
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+#filter-input {
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-width: 200px;
+}
+
+/* 差异查看器样式 */
+.diff-viewer {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    overflow: hidden;
+}
+
+.diff-header {
+    display: flex;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    font-weight: bold;
+}
+
+.diff-side {
+    flex: 1;
+    padding: 0 10px;
+    text-align: center;
+}
+
+.diff-content {
+    width: 100%;
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.category {
+    margin-bottom: 15px;
+}
+
+.category-header {
+    padding: 12px;
+    font-size: 1.1em;
+}
+
+.file-info {
+    padding: 8px 12px;
+    margin: 4px 0;
+    border-radius: 4px;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* 分类折叠样式 */
+.category {
+    margin-bottom: 10px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.category-header {
+    padding: 10px;
+    background-color: #f8f9fa;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #ddd;
+}
+
+.category-header::after {
+    content: '▼';
+    font-size: 0.8em;
+    transition: transform 0.2s;
+}
+
+.category-header.collapsed::after {
+    transform: rotate(-90deg);
+}
+
+.category-content {
+    max-height: 500px;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+
+.category-content.collapsed {
+    max-height: 0;
+}
+
+/* 差异状态指示 */
+.diff-row {
+    display: flex;
+    padding: 8px;
+    margin: 4px 0;
+    border-radius: 4px;
+}
+
+.status-added {
+    background-color: #e8f5e9;
+    color: #28a745;
+}
+
+.status-deleted {
+    background-color: #f8d7da;
+    color: #dc3545;
+}
+
+.status-modified {
+    background-color: #fff3cd;
+    color: #ffc107;
+}
+
+.status-unchanged {
+    color: #6c757d;
+}
+
+.file-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.file-name {
+    font-weight: bold;
+}
+
+.file-meta {
+    font-size: 0.85em;
+    color: #666;
+    margin: 2px 0;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.file-meta span {
+    white-space: nowrap;
+}

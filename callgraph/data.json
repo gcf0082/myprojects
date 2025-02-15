@@ -1,0 +1,11 @@
+{
+  "nodes": ["main", "funcA", "funcB", "funcC", "funcD", "funcE", "funcF"],
+  "links": [
+    {"source": "main", "target": "funcA", "line": 10},
+    {"source": "funcA", "target": "funcB", "line": 25},
+    {"source": "funcA", "target": "funcC", "line": 30},
+    {"source": "main", "target": "funcD", "line": 15},
+    {"source": "funcD", "target": "funcE", "line": 40},
+    {"source": "funcD", "target": "funcF", "line": 45}
+  ]
+}

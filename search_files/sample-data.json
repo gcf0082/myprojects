@@ -1,0 +1,40 @@
+[
+  {
+    "path": "/src/utils/helper2.js",
+    "matches": [
+      {
+        "line": 4,
+        "text": "function formatDate(date) { return date.toISOString(); }",
+        "highlights": [
+          {"start": 9, "end": 19}
+        ]
+      },
+      {
+        "line": 5,
+        "text": "const formatted = formatDate(new Date());",
+        "highlights": [
+          {"start": 14, "end": 24}
+        ]
+      }
+    ]
+  },
+  {
+    "path": "/src/utils/helper.js",
+    "matches": [
+      {
+        "line": 4,
+        "text": "function formatDate(date) { return date.toISOString(); }",
+        "highlights": [
+          {"start": 9, "end": 19}
+        ]
+      },
+      {
+        "line": 5,
+        "text": "const formatted = formatDate(new Date());",
+        "highlights": [
+          {"start": 14, "end": 24}
+        ]
+      }
+    ]
+  }
+]

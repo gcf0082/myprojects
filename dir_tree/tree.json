@@ -1,0 +1,19 @@
+[
+    {
+        "id": "root",
+        "parent": "#",
+        "text": "Root",
+        "state": {
+            "opened": true
+        }
+    }
+]
+
+[
+    {
+        "id": "file.txt",
+        "parent": "",
+        "text": "file.txt",
+        "type": "file"
+    }
+]
