@@ -1,6 +1,6 @@
 [
   {
-    "path": "/src/utils/helper2.js",
+    "path": "src/utils/helper2.js",
     "matches": [
       {
         "line": 4,
@@ -19,7 +19,7 @@
     ]
   },
   {
-    "path": "/src/utils/helper.js",
+    "path": "src/utils/helper.js",
     "matches": [
       {
         "line": 4,
