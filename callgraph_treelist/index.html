@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>函数调用关系图</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="controls">
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="搜索函数名...">
+            <button id="searchButton">搜索</button>
+        </div>
+    </div>
+    <div class="main-container">
+        <div id="tree-container"></div>
+        <div id="info-panel">
+            <h3>Call Information</h3>
+            <div class="info-content">
+                <p><strong>Function:</strong> <span id="info-function"></span></p>
+                <p><strong>Line:</strong> <span id="info-line"></span></p>
+                <p><strong>Details:</strong> <span id="info-details"></span></p>
+            </div>
+        </div>
+    </div>
+    <div id="contextMenu">
+        <ul>
+            <li id="copyFunctionName">复制函数名</li>
+            <li id="expandAll">全部展开</li>
+            <li id="collapseAll">全部折叠</li>
+        </ul>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

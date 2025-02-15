@@ -1,0 +1,163 @@
+.tree-node {
+    margin-left: 20px;
+    padding: 5px 0;
+}
+
+.node-content {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.toggle {
+    margin-right: 5px;
+    cursor: pointer;
+}
+
+.node-name {
+    margin-left: 5px;
+    position: relative;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+.node-name:hover::after {
+    content: attr(data-fullname);
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #333;
+    color: #fff;
+    padding: 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+    z-index: 100;
+    margin-left: 10px;
+}
+
+.children {
+    display: none;
+}
+
+.children.expanded {
+    display: block;
+}
+
+/* 主布局样式 */
+.main-container {
+    display: flex;
+    height: 100vh;
+}
+
+#tree-container {
+    flex: 1;
+    height: 100%;
+    overflow: auto;
+    padding: 10px;
+}
+
+#info-panel {
+    width: 300px;
+    background: #f5f5f5;
+    border-left: 1px solid #ddd;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.info-content {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.info-content p {
+    margin: 10px 0;
+}
+
+.info-content strong {
+    display: inline-block;
+    width: 60px;
+    color: #666;
+}
+
+/* 搜索相关样式 */
+.search-container {
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 5px;
+}
+
+#searchInput {
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    margin-right: 10px;
+}
+
+#searchButton {
+    padding: 5px 15px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+#searchButton:hover {
+    background: #0056b3;
+}
+
+/* 高亮样式 */
+.highlight {
+    background-color: #ffeb3b;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+/* 节点颜色样式 */
+.node-name.red {
+    color: #ff4444;
+}
+
+.node-name.blue {
+    color: #4444ff;
+}
+
+.node-name.green {
+    color: #44ff44;
+}
+
+.node-name.yellow {
+    color: #ffff44;
+}
+
+.node-name.purple {
+    color: #ff44ff;
+}
+
+/* 右键菜单样式 */
+#contextMenu {
+    display: none;
+    position: absolute;
+    background: white;
+    border: 1px solid #ccc;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    z-index: 1000;
+}
+
+#contextMenu ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+#contextMenu li {
+    padding: 5px 20px;
+    cursor: pointer;
+}
+
+#contextMenu li:hover {
+    background: #f0f0f0;
+}

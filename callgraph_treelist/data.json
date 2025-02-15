@@ -1,0 +1,11 @@
+{
+    "calls": [
+        {"caller": "mainA", "callee": "functionXXX", "line": 100},
+        {"caller": "main", "callee": "functionA", "line": 101},
+        {"caller": "main", "callee": "functionB", "line": 102},
+        {"caller": "functionA", "callee": "functionA1", "line": 103},
+        {"caller": "functionA", "callee": "functionA2", "line": 104},
+        {"caller": "functionB", "callee": "functionB1", "line": 105},
+        {"caller": "functionB", "callee": "functionB2", "line": 106}
+    ]
+}
