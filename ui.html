@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Directory Links</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .result {
+            margin-top: 20px;
+        }
+        .link {
+            color: blue;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>GitHub Directory Links</h1>
+    <p>Fetching directories from <strong>owner/repo/path</strong>...</p>
+    
+    <div class="result" id="result">
+        <h2>Directories:</h2>
+        <ul id="directory-list"></ul>
+    </div>
+
+    <script>
+        // 写死的项目和路径信息
+        const owner = "gcf0082";  // 替换为实际的仓库拥有者
+        const repo = "myprojects";   // 替换为实际的仓库名称
+        const path = 前端简单示例";   // 替换为实际的路径，如果是根目录可以为空字符串
+
+        // 基础 URL
+        const baseUrl = "https://gcf0082.github.io/myprojects";
+
+        async function fetchDirectories() {
+            try {
+                // 构造 API 请求 URL
+                const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+                // 发起请求
+                const response = await fetch(url);
+
+                // 检查响应状态
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch directory contents. Status: ${response.status}`);
+                }
+
+                // 解析响应数据
+                const data = await response.json();
+
+                // 提取目录信息
+                const directories = data.filter(item => item.type === "dir");
+
+                // 显示目录名并拼接到基础 URL
+                const directoryList = document.getElementById("directory-list");
+                directories.forEach(dir => {
+                    const li = document.createElement("li");
+                    const linkText = `${baseUrl}/${dir.name}`;
+                    li.innerHTML = `<a href="${linkText}" target="_blank" class="link">${dir.name}</a>`;
+                    directoryList.appendChild(li);
+                });
+
+                // 如果没有目录，显示提示信息
+                if (directories.length === 0) {
+                    const li = document.createElement("li");
+                    li.textContent = "No directories found.";
+                    li.style.color = "gray";
+                    directoryList.appendChild(li);
+                }
+            } catch (error) {
+                console.error("Error fetching directory contents:", error);
+                const li = document.createElement("li");
+                li.textContent = `Error: ${error.message}`;
+                li.style.color = "red";
+                document.getElementById("directory-list").appendChild(li);
+            }
+        }
+
+        // 页面加载完成后自动获取目录
+        document.addEventListener("DOMContentLoaded", fetchDirectories);
+    </script>
+</body>
+</html>
