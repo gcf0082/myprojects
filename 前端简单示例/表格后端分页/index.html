@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>后端分页表格示例</title>
+    <style>
+        /* 表格样式 */
+        table {
+            border-collapse: collapse;
+            width: 90%;
+            margin: 20px auto;
+            font-family: Arial, sans-serif;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        /* 分页控件样式 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 20px 0;
+        }
+
+        .page-item {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            background: white;
+        }
+
+        .page-item:hover:not(.disabled) {
+            background-color: #f0f0f0;
+        }
+
+        .page-item.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .page-item.disabled {
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        /* 加载提示 */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        /* 每页条数选择 */
+        .page-size-selector {
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-size-selector">
+        每页显示：
+        <select id="pageSize">
+            <option value="5">5</option>
+            <option value="10" selected>10</option>
+            <option value="20">20</option>
+        </select>
+    </div>
+
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>名称</th>
+                <th>创建时间</th>
+                <th>状态</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 数据行将通过JavaScript动态生成 -->
+        </tbody>
+    </table>
+
+    <div class="loading" id="loading">加载中...</div>
+
+    <div class="pagination" id="pagination"></div>
+
+    <script>
+        // 模拟数据（代替数据库数据）
+        let mockDatabase = Array.from({ length: 123 }, (_, i) => ({
+            id: i + 1,
+            name: `项目 ${i + 1}`,
+            createdAt: new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
+            status: ['进行中', '已完成', '已取消'][i % 3]
+        }));
+
+        // 分页状态
+        let paginationState = {
+            currentPage: 1,
+            pageSize: 10,
+            totalItems: mockDatabase.length
+        };
+
+        // 模拟API请求（带延迟）
+        function fetchData(page, pageSize) {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    const start = (page - 1) * pageSize;
+                    const end = start + pageSize;
+                    resolve({
+                        data: mockDatabase.slice(start, end),
+                        total: mockDatabase.length
+                    });
+                }, 500); // 模拟网络延迟
+            });
+        }
+
+        // 渲染表格
+        function renderTable(data) {
+            const tbody = document.querySelector('#dataTable tbody');
+            tbody.innerHTML = data.map(item => `
+                <tr>
+                    <td>${item.id}</td>
+                    <td>${item.name}</td>
+                    <td>${item.createdAt}</td>
+                    <td>${item.status}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 渲染分页控件
+        function renderPagination(totalPages) {
+            const pagination = document.getElementById('pagination');
+            const items = [];
+            
+            // 上一页按钮
+            items.push(`
+                <button class="page-item ${paginationState.currentPage === 1 ? 'disabled' : ''}" 
+                        onclick="changePage(${paginationState.currentPage - 1})">
+                    上一页
+                </button>
+            `);
+
+            // 页码按钮
+            for (let i = 1; i <= totalPages; i++) {
+                items.push(`
+                    <button class="page-item ${i === paginationState.currentPage ? 'active' : ''}" 
+                            onclick="changePage(${i})">
+                        ${i}
+                    </button>
+                `);
+            }
+
+            // 下一页按钮
+            items.push(`
+                <button class="page-item ${paginationState.currentPage === totalPages ? 'disabled' : ''}" 
+                        onclick="changePage(${paginationState.currentPage + 1})">
+                    下一页
+                </button>
+            `);
+
+            pagination.innerHTML = items.join('');
+        }
+
+        // 切换页码
+        async function changePage(newPage) {
+            if (newPage < 1 || newPage > Math.ceil(paginationState.totalItems / paginationState.pageSize)) return;
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetchData(newPage, paginationState.pageSize);
+                paginationState.currentPage = newPage;
+                paginationState.totalItems = response.total;
+                
+                renderTable(response.data);
+                renderPagination(Math.ceil(response.total / paginationState.pageSize));
+            } catch (error) {
+                console.error('请求失败:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 显示/隐藏加载提示
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        // 初始化分页设置
+        document.getElementById('pageSize').addEventListener('change', (e) => {
+            paginationState.pageSize = parseInt(e.target.value);
+            changePage(1); // 重置到第一页
+        });
+
+        // 初始化加载数据
+        changePage(1);
+    </script>
+</body>
+</html>
