@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            color: #fff;
+        }
+
+        .menu-bar {
+            height: 30px;
+            background: #2d2d2d;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            border-bottom: 1px solid #000;
+        }
+
+        .menu-item {
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: #252526;
+            padding: 10px;
+            overflow-y: auto;
+        }
+
+        .file-tree {
+            list-style: none;
+        }
+
+        .file-item {
+            padding: 5px;
+            cursor: pointer;
+        }
+
+        .file-item:hover {
+            background: #2a2d2e;
+        }
+
+        .drag-horizontal {
+            width: 5px;
+            background: #333;
+            cursor: ew-resize;
+        }
+
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tabs-container {
+            height: 35px;
+            background: #2d2d2d;
+            display: flex;
+            align-items: center;
+        }
+
+        .tab {
+            padding: 8px 15px;
+            background: #1e1e1e;
+            margin-left: 5px;
+            cursor: pointer;
+        }
+
+        .tab.active {
+            background: #252526;
+        }
+
+        .editor-container {
+            flex: 1;
+            position: relative;
+        }
+
+        .editor-content {
+            width: 100%;
+            height: 100%;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 10px;
+            border: none;
+            outline: none;
+        }
+
+        .drag-vertical {
+            height: 5px;
+            background: #333;
+            cursor: ns-resize;
+        }
+
+        .terminal {
+            height: 150px;
+            background: #000;
+            padding: 10px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="menu-bar">
+        <div class="menu-item">文件</div>
+        <div class="menu-item">编辑</div>
+        <div class="menu-item">查看</div>
+        <div class="menu-item">帮助</div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <ul class="file-tree">
+                <li class="file-item">index.html</li>
+                <li class="file-item">style.css</li>
+                <li class="file-item">script.js</li>
+            </ul>
+        </div>
+        <div class="drag-horizontal"></div>
+        <div class="right-panel">
+            <div class="tabs-container">
+                <div class="tab active">index.html</div>
+                <div class="tab">style.css</div>
+            </div>
+            <div class="editor-container">
+                <textarea class="editor-content"></textarea>
+            </div>
+            <div class="drag-vertical"></div>
+            <div class="terminal">
+                > Terminal initialized
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 拖拽功能实现
+        const horizontalDrag = document.querySelector('.drag-horizontal');
+        const verticalDrag = document.querySelector('.drag-vertical');
+        const sidebar = document.querySelector('.sidebar');
+        const rightPanel = document.querySelector('.right-panel');
+        const terminal = document.querySelector('.terminal');
+
+        let isHorizontalDragging = false;
+        let isVerticalDragging = false;
+
+        horizontalDrag.addEventListener('mousedown', () => {
+            isHorizontalDragging = true;
+        });
+
+        verticalDrag.addEventListener('mousedown', () => {
+            isVerticalDragging = true;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isHorizontalDragging) {
+                const newWidth = e.clientX - sidebar.offsetLeft;
+                sidebar.style.width = `${newWidth}px`;
+            }
+            
+            if (isVerticalDragging) {
+                const newHeight = document.body.clientHeight - e.clientY;
+                terminal.style.height = `${newHeight}px`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isHorizontalDragging = false;
+            isVerticalDragging = false;
+        });
+
+        // 菜单点击事件
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', () => {
+                console.log(`点击了菜单: ${item.textContent}`);
+            });
+        });
+
+        // 文件树点击事件
+        document.querySelectorAll('.file-item').forEach(item => {
+            item.addEventListener('click', () => {
+                console.log(`打开了文件: ${item.textContent}`);
+            });
+        });
+
+        // Tab切换功能
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
