@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>实时数据仪表盘</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f6fa;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+        }
+
+        .stat-item:nth-child(1) { background: #3498db; }
+        .stat-item:nth-child(2) { background: #2ecc71; }
+        .stat-item:nth-child(3) { background: #e74c3c; }
+        .stat-item:nth-child(4) { background: #f1c40f; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- 实时折线图 -->
+        <div class="card">
+            <h2>服务器负载监控</h2>
+            <div class="chart-container">
+                <canvas id="lineChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 饼状图 -->
+        <div class="card">
+            <h2>流量分布</h2>
+            <div class="chart-container">
+                <canvas id="pieChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats">
+            <div class="stat-item">
+                <h3>在线用户</h3>
+                <p id="onlineUsers">0</p>
+            </div>
+            <div class="stat-item">
+                <h3>请求/分钟</h3>
+                <p id="requestRate">0</p>
+            </div>
+            <div class="stat-item">
+                <h3>错误率</h3>
+                <p id="errorRate">0%</p>
+            </div>
+            <div class="stat-item">
+                <h3>响应时间</h3>
+                <p id="responseTime">0ms</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟实时数据推送
+        const mockWebSocket = {
+            listeners: [],
+            connect() {
+                setInterval(() => {
+                    const newData = {
+                        timestamp: new Date().toLocaleTimeString(),
+                        cpu: Math.random() * 100,
+                        memory: 30 + Math.random() * 70,
+                        traffic: {
+                            api: 40 + Math.random() * 40,
+                            static: 20 + Math.random() * 30,
+                            database: 10 + Math.random() * 20
+                        },
+                        online: Math.floor(1000 + Math.random() * 500),
+                        requests: Math.floor(500 + Math.random() * 300),
+                        errors: Math.random() * 5,
+                        responseTime: 50 + Math.random() * 150
+                    };
+                    this.listeners.forEach(cb => cb(newData));
+                }, 2000);
+            },
+            subscribe(callback) {
+                this.listeners.push(callback);
+            }
+        };
+
+        // 初始化折线图
+        const lineCtx = document.getElementById('lineChart').getContext('2d');
+        const lineChart = new Chart(lineCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'CPU 使用率 (%)',
+                    data: [],
+                    borderColor: '#3498db',
+                    tension: 0.4,
+                    fill: false
+                }, {
+                    label: '内存使用率 (%)',
+                    data: [],
+                    borderColor: '#2ecc71',
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        // 初始化饼图
+        const pieCtx = document.getElementById('pieChart').getContext('2d');
+        const pieChart = new Chart(pieCtx, {
+            type: 'pie',
+            data: {
+                labels: ['API 请求', '静态资源', '数据库'],
+                datasets: [{
+                    data: [40, 30, 20],
+                    backgroundColor: ['#3498db', '#2ecc71', '#e74c3c']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+
+        // 实时数据更新
+        mockWebSocket.subscribe(data => {
+            // 更新折线图
+            if (lineChart.data.labels.length > 10) {
+                lineChart.data.labels.shift();
+                lineChart.data.datasets[0].data.shift();
+                lineChart.data.datasets[1].data.shift();
+            }
+            
+            lineChart.data.labels.push(data.timestamp);
+            lineChart.data.datasets[0].data.push(data.cpu.toFixed(1));
+            lineChart.data.datasets[1].data.push(data.memory.toFixed(1));
+            lineChart.update();
+
+            // 更新饼图
+            pieChart.data.datasets[0].data = [
+                data.traffic.api,
+                data.traffic.static,
+                data.traffic.database
+            ];
+            pieChart.update();
+
+            // 更新统计卡片
+            document.getElementById('onlineUsers').textContent = data.online;
+            document.getElementById('requestRate').textContent = data.requests;
+            document.getElementById('errorRate').textContent = 
+                data.errors.toFixed(1) + '%';
+            document.getElementById('responseTime').textContent = 
+                data.responseTime.toFixed(0) + 'ms';
+        });
+
+        // 启动模拟 WebSocket
+        mockWebSocket.connect();
+    </script>
+</body>
+</html>
