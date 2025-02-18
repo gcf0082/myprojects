@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>独立新建按钮的标签页</title>
+    <style>
+        .tab-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 20px auto;
+            font-family: Arial, sans-serif;
+        }
+
+        .tab-bar {
+            display: flex;
+            border-bottom: 2px solid #ddd;
+            position: relative;
+            padding-right: 100px;
+        }
+
+        .tabs-wrapper {
+            display: flex;
+            overflow-x: auto;
+            flex-grow: 1;
+            scrollbar-width: thin;
+        }
+
+        .tabs-wrapper::-webkit-scrollbar {
+            height: 4px;
+            background: #f1f1f1;
+        }
+
+        .tabs-wrapper::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 2px;
+        }
+
+        .tab-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 30px 12px 20px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .tab-item.active {
+            background: white;
+            border-color: #007bff;
+            color: #007bff;
+            z-index: 1;
+        }
+
+        .tab-item:hover:not(.active) {
+            background: #eee;
+        }
+
+        .close-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #999;
+            cursor: pointer;
+            transition: all 0.2s;
+            opacity: 0;
+        }
+
+        .close-btn::before,
+        .close-btn::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 2px;
+            background: white;
+            left: 3px;
+            top: 7px;
+        }
+
+        .close-btn::before {
+            transform: rotate(45deg);
+        }
+
+        .close-btn::after {
+            transform: rotate(-45deg);
+        }
+
+        .tab-item:hover .close-btn {
+            opacity: 1;
+        }
+
+        .close-btn:hover {
+            background: #ff4444;
+        }
+
+        .new-tab-btn {
+            position: absolute;
+            right: 0;
+            top: 0;
+            padding: 12px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px 5px 0 0;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100px;
+            justify-content: center;
+        }
+
+        .new-tab-btn:hover {
+            background: #0056b3;
+        }
+
+        .new-tab-btn::before {
+            content: "+";
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .tab-content {
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-top: none;
+            min-height: 300px;
+            background: white;
+            position: relative;
+        }
+
+        .content-card {
+            position: absolute;
+            width: 100%;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s;
+            pointer-events: none;
+        }
+
+        .content-card.active {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all;
+        }
+    </style>
+</head>
+<body>
+    <div class="tab-container">
+        <div class="tab-bar">
+            <div class="tabs-wrapper">
+                <div class="tab-item active" data-tab="tab1">
+                    标签1
+                    <div class="close-btn"></div>
+                </div>
+            </div>
+            <button class="new-tab-btn">新建</button>
+        </div>
+        
+        <div class="tab-content">
+            <div class="content-card active" data-content="tab1">
+                <h2>标签1内容</h2>
+                <p>这是初始标签的内容</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class TabManager {
+            constructor() {
+                this.tabCount = 1;
+                this.initEvents();
+            }
+
+            initEvents() {
+                document.querySelector('.new-tab-btn').addEventListener('click', () => {
+                    this.createNewTab();
+                });
+
+                document.querySelector('.tabs-wrapper').addEventListener('click', (e) => {
+                    const tabItem = e.target.closest('.tab-item');
+                    if (tabItem) {
+                        this.switchTab(tabItem);
+                    }
+                    
+                    if (e.target.closest('.close-btn')) {
+                        const tabItem = e.target.closest('.tab-item');
+                        this.closeTab(tabItem);
+                    }
+                });
+            }
+
+            createNewTab() {
+                this.tabCount++;
+                const tabId = `tab${this.tabCount}`;
+                
+                const newTab = document.createElement('div');
+                newTab.className = 'tab-item';
+                newTab.dataset.tab = tabId;
+                newTab.innerHTML = `
+                    标签${this.tabCount}
+                    <div class="close-btn"></div>
+                `;
+
+                const tabsWrapper = document.querySelector('.tabs-wrapper');
+                tabsWrapper.appendChild(newTab);
+
+                const newContent = document.createElement('div');
+                newContent.className = 'content-card';
+                newContent.dataset.content = tabId;
+                newContent.innerHTML = `
+                    <h2>标签${this.tabCount}内容</h2>
+                    <p>这是新建标签的动态内容（创建时间：${new Date().toLocaleTimeString()}）</p>
+                `;
+
+                document.querySelector('.tab-content').appendChild(newContent);
+                
+                this.switchTab(newTab);
+                newTab.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            switchTab(selectedTab) {
+                document.querySelectorAll('.tab-item').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelectorAll('.content-card').forEach(content => {
+                    content.classList.remove('active');
+                });
+
+                selectedTab.classList.add('active');
+                const tabId = selectedTab.dataset.tab;
+                document.querySelector(`[data-content="${tabId}"]`).classList.add('active');
+            }
+
+            closeTab(tabItem) {
+                if (document.querySelectorAll('.tab-item').length === 1) return;
+
+                const contentId = tabItem.dataset.tab;
+                const isActive = tabItem.classList.contains('active');
+
+                tabItem.remove();
+                document.querySelector(`[data-content="${contentId}"]`).remove();
+
+                if (isActive) {
+                    const remainingTabs = document.querySelectorAll('.tab-item');
+                    if (remainingTabs.length > 0) {
+                        this.switchTab(remainingTabs[remainingTabs.length - 1]);
+                    }
+                }
+            }
+        }
+
+        new TabManager();
+    </script>
+</body>
+</html>
