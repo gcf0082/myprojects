@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>数据表格演示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2rem;
+            background-color: #f8f9fa;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .search-box {
+            margin-bottom: 1rem;
+        }
+
+        #searchInput {
+            width: 300px;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background-color: #f1f1f1;
+        }
+
+        .pagination {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .pagination button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #007bff;
+            color: white;
+        }
+
+        .pagination button:disabled {
+            background: #f8f9fa;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="搜索姓名或邮箱...">
+        </div>
+        
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th data-sort="id">ID ▼</th>
+                    <th data-sort="name">姓名 ▼</th>
+                    <th data-sort="email">邮箱 ▼</th>
+                    <th data-sort="age">年龄 ▼</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+
+        <div class="pagination" id="pagination"></div>
+    </div>
+
+    <script>
+        // 模拟数据生成
+        const generateMockData = (count = 50) => {
+            const names = ['王伟', '李娜', '张强', '刘芳', '陈静', '赵磊'];
+            const domains = ['gmail.com', '163.com', 'qq.com', 'outlook.com'];
+            
+            return Array.from({ length: count }, (_, i) => ({
+                id: i + 1,
+                name: names[Math.floor(Math.random() * names.length)] + (i % 5),
+                email: `user${i}@${domains[Math.floor(Math.random() * domains.length)]}`,
+                age: 20 + Math.floor(Math.random() * 20)
+            }));
+        };
+
+        // 状态管理
+        let currentData = [];
+        let currentPage = 1;
+        let pageSize = 10;
+        let sortKey = 'id';
+        let sortOrder = 'asc'; // 'asc' 或 'desc'
+
+        // 模拟 API 请求（带延迟）
+        const fetchData = async () => {
+            await new Promise(resolve => setTimeout(resolve, 500)); // 模拟网络延迟
+            return generateMockData();
+        };
+
+        // 渲染表格
+        const renderTable = (data) => {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            data.slice((currentPage - 1) * pageSize, currentPage * pageSize).forEach(item => {
+                const row = `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td>${item.name}</td>
+                        <td>${item.email}</td>
+                        <td>${item.age}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        };
+
+        // 渲染分页
+        const renderPagination = (totalItems) => {
+            const totalPages = Math.ceil(totalItems / pageSize);
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            // 上一页
+            pagination.innerHTML += `
+                <button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                    上一页
+                </button>
+            `;
+
+            // 页码
+            for (let i = 1; i <= totalPages; i++) {
+                pagination.innerHTML += `
+                    <button onclick="changePage(${i})" ${i === currentPage ? 'disabled' : ''}>
+                        ${i}
+                    </button>
+                `;
+            }
+
+            // 下一页
+            pagination.innerHTML += `
+                <button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                    下一页
+                </button>
+            `;
+        };
+
+        // 排序函数
+        const sortData = (key) => {
+            if (sortKey === key) {
+                sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortKey = key;
+                sortOrder = 'asc';
+            }
+
+            currentData.sort((a, b) => {
+                if (a[sortKey] > b[sortKey]) return sortOrder === 'asc' ? 1 : -1;
+                if (a[sortKey] < b[sortKey]) return sortOrder === 'asc' ? -1 : 1;
+                return 0;
+            });
+
+            updateTableHeaders();
+            renderTable(currentData);
+        };
+
+        // 更新表头指示符
+        const updateTableHeaders = () => {
+            document.querySelectorAll('th').forEach(th => {
+                const key = th.dataset.sort;
+                th.innerHTML = `${key} ${sortKey === key ? (sortOrder === 'asc' ? '▲' : '▼') : '▼'}`;
+            });
+        };
+
+        // 搜索过滤
+        const filterData = (searchText) => {
+            return currentData.filter(item => 
+                item.name.toLowerCase().includes(searchText) ||
+                item.email.toLowerCase().includes(searchText)
+            );
+        };
+
+        // 分页切换
+        window.changePage = (newPage) => {
+            currentPage = newPage;
+            renderTable(currentData);
+            renderPagination(currentData.length);
+        };
+
+        // 初始化
+        (async () => {
+            currentData = await fetchData();
+            currentData.sort((a, b) => a.id - b.id);
+            
+            // 事件监听
+            document.querySelectorAll('th').forEach(th => {
+                th.addEventListener('click', () => sortData(th.dataset.sort));
+            });
+
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                const filtered = filterData(e.target.value.toLowerCase());
+                renderTable(filtered);
+                renderPagination(filtered.length);
+            });
+
+            // 初始渲染
+            renderTable(currentData);
+            renderPagination(currentData.length);
+        })();
+    </script>
+</body>
+</html>
