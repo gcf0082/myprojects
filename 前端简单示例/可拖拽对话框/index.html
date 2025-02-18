@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>可拖拽对话框示例</title>
+    <style>
+        /* 触发按钮样式 */
+        .open-dialog-btn {
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* 对话框容器 */
+        .dialog-container {
+            position: fixed;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            min-width: 300px;
+            display: none;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .dialog-container.visible {
+            display: block;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* 对话框标题栏 */
+        .dialog-header {
+            padding: 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            border-radius: 8px 8px 0 0;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 关闭按钮 */
+        .close-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            position: relative;
+            opacity: 0.6;
+        }
+
+        .close-btn:hover {
+            opacity: 1;
+        }
+
+        .close-btn::before,
+        .close-btn::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 2px;
+            background: #333;
+            left: 4px;
+            top: 11px;
+        }
+
+        .close-btn::before {
+            transform: rotate(45deg);
+        }
+
+        .close-btn::after {
+            transform: rotate(-45deg);
+        }
+
+        /* 对话框内容 */
+        .dialog-content {
+            padding: 20px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        /* 半透明遮罩 */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+        }
+
+        .overlay.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <button class="open-dialog-btn">打开对话框</button>
+    
+    <!-- 遮罩层 -->
+    <div class="overlay"></div>
+
+    <!-- 对话框 -->
+    <div class="dialog-container">
+        <div class="dialog-header">
+            <h3 style="margin: 0">可拖拽对话框</h3>
+            <button class="close-btn"></button>
+        </div>
+        <div class="dialog-content">
+            <p>这是一个可以拖拽的对话框示例</p>
+            <p>功能特点：</p>
+            <ul>
+                <li>点击标题栏拖拽移动</li>
+                <li>平滑打开/关闭动画</li>
+                <li>边界限制（不会移出可视区域）</li>
+                <li>ESC键关闭对话框</li>
+                <li>点击遮罩层关闭</li>
+            </ul>
+            <p>请尝试拖拽标题栏移动对话框！</p>
+        </div>
+    </div>
+
+    <script>
+        class Dialog {
+            constructor() {
+                this.dialog = document.querySelector('.dialog-container');
+                this.header = this.dialog.querySelector('.dialog-header');
+                this.overlay = document.querySelector('.overlay');
+                this.isDragging = false;
+                this.initialX = 0;
+                this.initialY = 0;
+                this.offsetX = 0;
+                this.offsetY = 0;
+
+                this.initEvents();
+            }
+
+            initEvents() {
+                // 打开按钮
+                document.querySelector('.open-dialog-btn').addEventListener('click', () => this.open());
+
+                // 关闭按钮
+                this.dialog.querySelector('.close-btn').addEventListener('click', () => this.close());
+
+                // 拖拽事件
+                this.header.addEventListener('mousedown', (e) => this.startDrag(e));
+
+                // 遮罩点击关闭
+                this.overlay.addEventListener('click', () => this.close());
+
+                // ESC键关闭
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') this.close();
+                });
+            }
+
+            open() {
+                this.dialog.classList.add('visible');
+                this.overlay.classList.add('visible');
+                this.centerDialog();
+            }
+
+            close() {
+                this.dialog.classList.remove('visible');
+                this.overlay.classList.remove('visible');
+            }
+
+            centerDialog() {
+                const dialogWidth = this.dialog.offsetWidth;
+                const dialogHeight = this.dialog.offsetHeight;
+                this.dialog.style.left = `${(window.innerWidth - dialogWidth) / 2}px`;
+                this.dialog.style.top = `${(window.innerHeight - dialogHeight) / 2}px`;
+            }
+
+            startDrag(e) {
+                this.isDragging = true;
+                this.initialX = e.clientX;
+                this.initialY = e.clientY;
+                this.offsetX = this.dialog.offsetLeft;
+                this.offsetY = this.dialog.offsetTop;
+
+                document.addEventListener('mousemove', this.handleDrag);
+                document.addEventListener('mouseup', this.stopDrag);
+            }
+
+            handleDrag = (e) => {
+                if (!this.isDragging) return;
+                
+                const deltaX = e.clientX - this.initialX;
+                const deltaY = e.clientY - this.initialY;
+                let newX = this.offsetX + deltaX;
+                let newY = this.offsetY + deltaY;
+
+                // 边界限制
+                const dialogWidth = this.dialog.offsetWidth;
+                const dialogHeight = this.dialog.offsetHeight;
+                
+                newX = Math.max(0, Math.min(newX, window.innerWidth - dialogWidth));
+                newY = Math.max(0, Math.min(newY, window.innerHeight - dialogHeight));
+
+                this.dialog.style.left = `${newX}px`;
+                this.dialog.style.top = `${newY}px`;
+            }
+
+            stopDrag = () => {
+                this.isDragging = false;
+                document.removeEventListener('mousemove', this.handleDrag);
+                document.removeEventListener('mouseup', this.stopDrag);
+            }
+        }
+
+        // 初始化对话框
+        const dialog = new Dialog();
+    </script>
+</body>
+</html>
