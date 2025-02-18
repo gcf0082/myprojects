@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            color: #fff;
+        }
+
+        .menu-bar {
+            height: 30px;
+            background: #2d2d2d;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            border-bottom: 1px solid #000;
+            position: relative;
+        }
+
+        .menu-item {
+            padding: 5px 15px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .menu-item:hover {
+            background: #3c3c3c;
+        }
+
+        .dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: #252526;
+            min-width: 160px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 100;
+        }
+
+        .dropdown-item {
+            padding: 8px 20px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .dropdown-item:hover {
+            background: #2a2d2e;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: #252526;
+            padding: 10px;
+            overflow-y: auto;
+        }
+
+        .file-tree {
+            list-style: none;
+        }
+
+        .file-item {
+            padding: 5px;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-item:hover {
+            background: #2a2d2e;
+        }
+
+        .drag-horizontal {
+            width: 5px;
+            background: #333;
+            cursor: ew-resize;
+        }
+
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tabs-container {
+            height: 35px;
+            background: #2d2d2d;
+            display: flex;
+            align-items: center;
+        }
+
+        .tab {
+            padding: 8px 30px 8px 15px;
+            background: #1e1e1e;
+            margin-left: 5px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .tab.active {
+            background: #252526;
+        }
+
+        .tab-close {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 16px;
+            display: none;
+        }
+
+        .tab:hover .tab-close {
+            display: block;
+        }
+
+        .tab-close:hover {
+            background: #666;
+        }
+
+        .editor-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #editor {
+            width: 100%;
+            height: 100%;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 10px;
+            border: none;
+            outline: none;
+            resize: none;
+            font-family: monospace;
+        }
+
+        .drag-vertical {
+            height: 5px;
+            background: #333;
+            cursor: ns-resize;
+        }
+
+        .terminal {
+            height: 150px;
+            background: #000;
+            padding: 10px;
+            overflow-y: auto;
+            transition: height 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="menu-bar">
+        <div class="menu-item" data-menu="file">
+            文件
+            <div class="dropdown">
+                <div class="dropdown-item" data-action="new">新建文件</div>
+                <div class="dropdown-item" data-action="save">保存</div>
+                <div class="dropdown-item" data-action="save-as">另存为</div>
+            </div>
+        </div>
+        <div class="menu-item" data-menu="edit">
+            编辑
+            <div class="dropdown">
+                <div class="dropdown-item" data-action="undo">撤销</div>
+                <div class="dropdown-item" data-action="redo">重做</div>
+                <div class="dropdown-item" data-action="find">查找</div>
+            </div>
+        </div>
+        <div class="menu-item" data-action="toggle-terminal">查看</div>
+        <div class="menu-item" data-action="help">帮助</div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <ul class="file-tree">
+                <li class="file-item">index.html</li>
+                <li class="file-item">style.css</li>
+                <li class="file-item">script.js</li>
+            </ul>
+        </div>
+        <div class="drag-horizontal"></div>
+        <div class="right-panel">
+            <div class="tabs-container"></div>
+            <div class="editor-container">
+                <textarea id="editor" class="editor-content"></textarea>
+            </div>
+            <div class="drag-vertical"></div>
+            <div class="terminal" style="height: 150px;">
+                > Terminal initialized<br>
+                > Type 'help' for commands
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 文件系统模拟
+        const files = {
+            'index.html': '<!DOCTYPE html>\n<html>\n<head></head>\n<body></body>\n</html>',
+            'style.css': '/* CSS文件内容 */',
+            'script.js': '// JavaScript文件内容'
+        };
+
+        let currentFile = null;
+        const editor = document.getElementById('editor');
+
+        // 拖拽功能实现
+        const horizontalDrag = document.querySelector('.drag-horizontal');
+        const verticalDrag = document.querySelector('.drag-vertical');
+        const sidebar = document.querySelector('.sidebar');
+        const terminal = document.querySelector('.terminal');
+
+        let isHorizontalDragging = false;
+        let isVerticalDragging = false;
+
+        horizontalDrag.addEventListener('mousedown', () => {
+            isHorizontalDragging = true;
+        });
+
+        verticalDrag.addEventListener('mousedown', () => {
+            isVerticalDragging = true;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isHorizontalDragging) {
+                const newWidth = e.clientX - sidebar.offsetLeft;
+                sidebar.style.width = `${newWidth}px`;
+            }
+            
+            if (isVerticalDragging) {
+                const newHeight = document.body.clientHeight - e.clientY;
+                terminal.style.height = `${newHeight}px`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isHorizontalDragging = false;
+            isVerticalDragging = false;
+        });
+
+        // 下拉菜单功能
+        document.querySelectorAll('.menu-item').forEach(menu => {
+            menu.addEventListener('click', function(e) {
+                if (this.dataset.menu) {
+                    const dropdown = this.querySelector('.dropdown');
+                    const isVisible = dropdown.style.display === 'block';
+                    closeAllDropdowns();
+                    dropdown.style.display = isVisible ? 'none' : 'block';
+                } else {
+                    handleMenuAction(this.dataset.action);
+                }
+            });
+        });
+
+        function closeAllDropdowns() {
+            document.querySelectorAll('.dropdown').forEach(d => d.style.display = 'none');
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.menu-item')) {
+                closeAllDropdowns();
+            }
+        });
+
+        // 文件操作功能
+        function openFile(filename) {
+            if (!files.hasOwnProperty(filename)) return;
+            
+            let tab = document.querySelector(`.tab[data-file="${filename}"]`);
+            if (!tab) {
+                tab = createTab(filename);
+                document.querySelector('.tabs-container').appendChild(tab);
+            }
+            
+            switchTab(tab);
+            editor.value = files[filename];
+            currentFile = filename;
+        }
+
+        function createTab(filename) {
+            const tab = document.createElement('div');
+            tab.className = 'tab';
+            tab.setAttribute('data-file', filename);
+            tab.innerHTML = `
+                ${filename}
+                <span class="tab-close">×</span>
+            `;
+            
+            tab.querySelector('.tab-close').addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeTab(tab);
+            });
+            
+            tab.addEventListener('click', () => switchTab(tab));
+            return tab;
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentFile = tab.dataset.file;
+            editor.value = files[currentFile];
+        }
+
+        function closeTab(tab) {
+            const tabs = document.querySelectorAll('.tab');
+            if (tabs.length === 1) {
+                currentFile = null;
+                editor.value = '';
+            } else if (tab.classList.contains('active')) {
+                const index = Array.from(tabs).indexOf(tab);
+                const newActiveTab = tabs[index === 0 ? 1 : index - 1];
+                switchTab(newActiveTab);
+            }
+            tab.remove();
+        }
+
+        // 菜单功能处理
+        function handleMenuAction(action) {
+            switch(action) {
+                case 'new':
+                    const fileName = prompt('输入新文件名:');
+                    if (fileName && !files[fileName]) {
+                        files[fileName] = '';
+                        const fileItem = document.createElement('li');
+                        fileItem.className = 'file-item';
+                        fileItem.textContent = fileName;
+                        fileItem.addEventListener('click', () => openFile(fileName));
+                        document.querySelector('.file-tree').appendChild(fileItem);
+                        openFile(fileName);
+                    }
+                    break;
+                    
+                case 'save':
+                    if (currentFile) {
+                        files[currentFile] = editor.value;
+                        alert(`文件 ${currentFile} 已保存！`);
+                    }
+                    break;
+                    
+                case 'toggle-terminal':
+                    terminal.style.height = terminal.style.height === '0px' ? '150px' : '0px';
+                    document.querySelector('.drag-vertical').style.display = 
+                        terminal.style.height === '0px' ? 'none' : 'block';
+                    break;
+                    
+                case 'help':
+                    alert('简易IDE使用说明：\n1. 点击左侧文件打开编辑器\n2. 使用顶部菜单进行操作\n3. 拖拽分隔条调整布局');
+                    break;
+                    
+                case 'undo':
+                    document.execCommand('undo');
+                    break;
+                    
+                case 'redo':
+                    document.execCommand('redo');
+                    break;
+            }
+        }
+
+        // 文件树点击事件
+        document.querySelectorAll('.file-item').forEach(item => {
+            item.addEventListener('click', function() {
+                openFile(this.textContent);
+            });
+        });
+
+        // 初始化打开第一个文件
+        openFile('index.html');
+    </script>
+</body>
+</html>
