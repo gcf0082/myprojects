@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>用户管理系统</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        button { padding: 5px 10px; cursor: pointer; }
+        .modal { 
+            display: none; 
+            position: fixed; 
+            top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); 
+            padding: 20px; 
+            background: white; 
+            border: 1px solid #ccc; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>用户管理</h1>
+        <button onclick="showAddModal()">添加用户</button>
+        <div id="userTable"></div>
+    </div>
+
+    <!-- 添加/编辑用户的模态框 -->
+    <div id="userModal" class="modal">
+        <h3 id="modalTitle">添加用户</h3>
+        <form onsubmit="handleSubmit(event)">
+            <input type="hidden" id="userId">
+            <div class="form-group">
+                <label>姓名：</label>
+                <input type="text" id="name" required>
+            </div>
+            <div class="form-group">
+                <label>邮箱：</label>
+                <input type="email" id="email" required>
+            </div>
+            <button type="submit">提交</button>
+            <button type="button" onclick="closeModal()">取消</button>
+        </form>
+    </div>
+
+    <script>
+        // 模拟异步请求（延迟 500ms）
+        const simulateAPI = (action, data) => {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    let users = JSON.parse(localStorage.getItem('users') || '[]');
+                    switch (action) {
+                        case 'GET':
+                            resolve(users);
+                            break;
+                        case 'POST':
+                            users.push({ ...data, id: Date.now() });
+                            break;
+                        case 'PUT':
+                            users = users.map(u => u.id === data.id ? data : u);
+                            break;
+                        case 'DELETE':
+                            users = users.filter(u => u.id !== data.id);
+                            break;
+                    }
+                    localStorage.setItem('users', JSON.stringify(users));
+                    resolve(data);
+                }, 500);
+            });
+        };
+
+        // 渲染用户表格
+        const renderUsers = async () => {
+            const users = await simulateAPI('GET');
+            const html = `
+                <table>
+                    <tr><th>ID</th><th>姓名</th><th>邮箱</th><th>操作</th></tr>
+                    ${users.map(user => `
+                        <tr>
+                            <td>${user.id}</td>
+                            <td>${user.name}</td>
+                            <td>${user.email}</td>
+                            <td>
+                                <button onclick="showEditModal(${user.id})">编辑</button>
+                                <button onclick="deleteUser(${user.id})">删除</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+            document.getElementById('userTable').innerHTML = html;
+        };
+
+        // 显示添加模态框
+        const showAddModal = () => {
+            document.getElementById('modalTitle').textContent = '添加用户';
+            document.getElementById('userId').value = '';
+            document.getElementById('name').value = '';
+            document.getElementById('email').value = '';
+            document.getElementById('userModal').style.display = 'block';
+        };
+
+        // 显示编辑模态框
+        const showEditModal = async (id) => {
+            const users = await simulateAPI('GET');
+            const user = users.find(u => u.id === id);
+            document.getElementById('modalTitle').textContent = '编辑用户';
+            document.getElementById('userId').value = user.id;
+            document.getElementById('name').value = user.name;
+            document.getElementById('email').value = user.email;
+            document.getElementById('userModal').style.display = 'block';
+        };
+
+        // 提交表单
+        const handleSubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('userId').value;
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const user = { id: id ? parseInt(id) : Date.now(), name, email };
+
+            await simulateAPI(id ? 'PUT' : 'POST', user);
+            closeModal();
+            await renderUsers();
+        };
+
+        // 删除用户
+        const deleteUser = async (id) => {
+            if (confirm('确定删除吗？')) {
+                await simulateAPI('DELETE', { id });
+                await renderUsers();
+            }
+        };
+
+        // 关闭模态框
+        const closeModal = () => {
+            document.getElementById('userModal').style.display = 'none';
+        };
+
+        // 初始化渲染
+        renderUsers();
+    </script>
+</body>
+</html>
