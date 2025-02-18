@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>表格右键菜单示例</title>
+    <style>
+        /* 基础表格样式 */
+        table {
+            border-collapse: collapse;
+            width: 80%;
+            margin: 20px auto;
+            font-family: Arial, sans-serif;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        /* 右键菜单样式 */
+        .context-menu {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            display: none;
+            min-width: 120px;
+        }
+
+        .context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+
+        .context-menu-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* 删除确认弹窗样式 */
+        .confirm-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border: 1px solid #ddd;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>姓名</th>
+                <th>年龄</th>
+                <th>邮箱</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 数据行将通过JavaScript动态生成 -->
+        </tbody>
+    </table>
+
+    <!-- 右键菜单 -->
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item" data-action="view">查看详情</div>
+        <div class="context-menu-item" data-action="edit">编辑</div>
+        <div class="context-menu-item" data-action="delete">删除</div>
+    </div>
+
+    <!-- 删除确认弹窗 -->
+    <div id="confirmDialog" class="confirm-dialog">
+        <p>确定要删除这条记录吗？</p>
+        <button onclick="confirmDelete()">确定</button>
+        <button onclick="cancelDelete()">取消</button>
+    </div>
+
+    <script>
+        // 模拟数据（代替后端API返回的数据）
+        let mockData = [];
+        let selectedRowId = null; // 当前选中的行ID
+
+        // 初始化数据（模拟后端获取数据）
+        function initData() {
+            mockData = Array.from({ length: 5 }, (_, i) => ({
+                id: i + 1,
+                name: `用户${i + 1}`,
+                age: 25 + i,
+                email: `user${i + 1}@example.com`
+            }));
+        }
+
+        // 渲染表格（模拟前端数据绑定）
+        function renderTable() {
+            const tbody = document.querySelector('#dataTable tbody');
+            tbody.innerHTML = mockData.map(item => `
+                <tr data-id="${item.id}">
+                    <td>${item.id}</td>
+                    <td>${item.name}</td>
+                    <td>${item.age}</td>
+                    <td>${item.email}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 显示右键菜单
+        function showContextMenu(event, rowId) {
+            event.preventDefault();
+            selectedRowId = rowId;
+
+            const menu = document.getElementById('contextMenu');
+            menu.style.display = 'block';
+            menu.style.left = `${event.pageX}px`;
+            menu.style.top = `${event.pageY}px`;
+        }
+
+        // 隐藏右键菜单
+        function hideContextMenu() {
+            document.getElementById('contextMenu').style.display = 'none';
+        }
+
+        // 处理菜单点击
+        function handleMenuAction(action) {
+            switch(action) {
+                case 'view':
+                    alert(`查看记录：${selectedRowId}`);
+                    break;
+                case 'edit':
+                    alert(`编辑记录：${selectedRowId}`);
+                    break;
+                case 'delete':
+                    showDeleteConfirm();
+                    break;
+            }
+        }
+
+        // 显示删除确认弹窗
+        function showDeleteConfirm() {
+            document.getElementById('confirmDialog').style.display = 'block';
+        }
+
+        // 确认删除（模拟向后端发送删除请求）
+        function confirmDelete() {
+            mockData = mockData.filter(item => item.id !== selectedRowId);
+            renderTable();
+            cancelDelete();
+            alert(`已删除记录：${selectedRowId}`);
+        }
+
+        // 取消删除
+        function cancelDelete() {
+            document.getElementById('confirmDialog').style.display = 'none';
+        }
+
+        // 初始化
+        function init() {
+            initData();
+            renderTable();
+
+            // 绑定事件监听器
+            document.addEventListener('click', hideContextMenu);
+            document.addEventListener('contextmenu', (e) => {
+                if (!e.target.closest('tr')) hideContextMenu();
+            });
+
+            // 表格行右键点击事件
+            document.querySelector('#dataTable tbody').addEventListener('contextmenu', (e) => {
+                const row = e.target.closest('tr');
+                if (row) {
+                    showContextMenu(e, parseInt(row.dataset.id));
+                }
+            });
+
+            // 右键菜单点击事件
+            document.getElementById('contextMenu').addEventListener('click', (e) => {
+                if (e.target.dataset.action) {
+                    handleMenuAction(e.target.dataset.action);
+                    hideContextMenu();
+                }
+            });
+        }
+
+        // 启动应用
+        init();
+    </script>
+</body>
+</html>
