@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>待办事项管理</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background-color: #f8f9fa;
+        }
+
+        .todo-app {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+
+        #todoInput {
+            flex: 1;
+            padding: 0.8rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .add-btn {
+            background: #28a745;
+            color: white;
+        }
+
+        .add-btn:hover {
+            background: #218838;
+        }
+
+        .todo-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background: #fff;
+            margin-bottom: 0.5rem;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .todo-item.completed {
+            background: #f8f9fa;
+            opacity: 0.7;
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+        }
+
+        .todo-text {
+            flex: 1;
+            margin: 0 1rem;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .edit-btn {
+            background: #ffc107;
+            color: black;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+        }
+
+        .status-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="todo-app">
+        <h1 style="text-align: center; margin-bottom: 1.5rem;">待办事项</h1>
+        <div class="input-group">
+            <input type="text" id="todoInput" placeholder="输入新任务...">
+            <button class="add-btn" onclick="addTodo()">添加</button>
+        </div>
+        <ul class="todo-list" id="todoList"></ul>
+    </div>
+
+    <script>
+        // 模拟数据库（内存存储）
+        let todos = [
+            { id: 1, text: '学习前端开发', completed: false },
+            { id: 2, text: '编写API文档', completed: true }
+        ];
+
+        // 模拟API请求
+        const mockAPI = {
+            getTodos: () => new Promise(resolve => 
+                setTimeout(() => resolve([...todos]), 500)
+            ),
+            
+            addTodo: (text) => new Promise(resolve => {
+                setTimeout(() => {
+                    const newTodo = { 
+                        id: Date.now(), 
+                        text, 
+                        completed: false 
+                    };
+                    todos.push(newTodo);
+                    resolve(newTodo);
+                }, 500);
+            }),
+
+            updateTodo: (id, updates) => new Promise(resolve => {
+                setTimeout(() => {
+                    const index = todos.findIndex(t => t.id === id);
+                    todos[index] = { ...todos[index], ...updates };
+                    resolve(todos[index]);
+                }, 500);
+            }),
+
+            deleteTodo: (id) => new Promise(resolve => {
+                setTimeout(() => {
+                    todos = todos.filter(t => t.id !== id);
+                    resolve(true);
+                }, 500);
+            })
+        };
+
+        // 渲染待办事项
+        async function renderTodos() {
+            const todoList = document.getElementById('todoList');
+            todoList.innerHTML = '';
+            
+            // 显示加载状态
+            todoList.innerHTML = '<div style="text-align: center">加载中...</div>';
+            
+            const data = await mockAPI.getTodos();
+            
+            todoList.innerHTML = '';
+            data.forEach(todo => {
+                const li = document.createElement('li');
+                li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
+                li.innerHTML = `
+                    <input 
+                        type="checkbox" 
+                        class="status-checkbox" 
+                        ${todo.completed ? 'checked' : ''}
+                        onchange="toggleTodo(${todo.id})"
+                    >
+                    <span class="todo-text">${todo.text}</span>
+                    <div class="actions">
+                        <button class="edit-btn" onclick="editTodo(${todo.id})">编辑</button>
+                        <button class="delete-btn" onclick="deleteTodo(${todo.id})">删除</button>
+                    </div>
+                `;
+                todoList.appendChild(li);
+            });
+        }
+
+        // 添加新待办
+        async function addTodo() {
+            const input = document.getElementById('todoInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            input.disabled = true;
+            document.querySelector('.add-btn').textContent = '添加中...';
+            
+            await mockAPI.addTodo(text);
+            await renderTodos();
+            
+            input.value = '';
+            input.disabled = false;
+            document.querySelector('.add-btn').textContent = '添加';
+        }
+
+        // 切换完成状态
+        async function toggleTodo(id) {
+            const todo = todos.find(t => t.id === id);
+            await mockAPI.updateTodo(id, { 
+                completed: !todo.completed 
+            });
+            renderTodos();
+        }
+
+        // 删除待办
+        async function deleteTodo(id) {
+            if (!confirm('确定要删除吗？')) return;
+            await mockAPI.deleteTodo(id);
+            renderTodos();
+        }
+
+        // 编辑待办
+        async function editTodo(id) {
+            const todo = todos.find(t => t.id === id);
+            const newText = prompt('编辑任务内容', todo.text);
+            
+            if (newText && newText.trim() !== todo.text) {
+                await mockAPI.updateTodo(id, { 
+                    text: newText.trim() 
+                });
+                renderTodos();
+            }
+        }
+
+        // 初始化渲染
+        renderTodos();
+    </script>
+</body>
+</html>
