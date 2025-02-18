@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>实时搜索系统</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 40px;
+            background: #f0f2f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .search-box:focus {
+            border-color: #2196F3;
+        }
+        .results {
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .result-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .result-item:hover {
+            background: #f8f9fa;
+        }
+        .result-item h3 {
+            margin: 0 0 5px 0;
+            color: #1a73e8;
+        }
+        .result-item p {
+            margin: 0;
+            color: #666;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <input 
+            type="text" 
+            class="search-box" 
+            placeholder="输入关键词搜索（如：手机、电脑...）"
+            id="searchInput"
+        >
+        <div class="results" id="results"></div>
+    </div>
+
+    <script>
+        // 模拟产品数据（实际项目可能来自API）
+        const mockProducts = [
+            { id: 1, title: '智能手机', description: '最新款5G智能手机，6.5英寸全面屏' },
+            { id: 2, title: '笔记本电脑', description: '高性能游戏笔记本，RTX 3060显卡' },
+            { id: 3, title: '无线耳机', description: '主动降噪蓝牙耳机，30小时续航' },
+            { id: 4, title: '智能手表', description: '健康监测，50米防水，运动必备' },
+            { id: 5, title: '平板电脑', description: '2K高清屏，支持手写笔输入' }
+        ];
+
+        // 防抖函数（核心优化）
+        const debounce = (func, delay = 300) => {
+            let timer;
+            return (...args) => {
+                clearTimeout(timer);
+                timer = setTimeout(() => func.apply(this, args), delay);
+            };
+        };
+
+        // 模拟API请求
+        const searchAPI = async (keyword) => {
+            // 显示加载状态
+            document.getElementById('results').innerHTML = 
+                '<div class="loading">搜索中...</div>';
+            
+            // 模拟网络延迟
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // 过滤逻辑
+            return mockProducts.filter(product => 
+                product.title.includes(keyword) || 
+                product.description.includes(keyword)
+            );
+        };
+
+        // 渲染搜索结果
+        const renderResults = (items) => {
+            const html = items.length > 0 
+                ? items.map(item => `
+                    <div class="result-item">
+                        <h3>${item.title}</h3>
+                        <p>${item.description}</p>
+                    </div>
+                `).join('')
+                : '<div class="loading">没有找到相关结果</div>';
+            
+            document.getElementById('results').innerHTML = html;
+        };
+
+        // 处理搜索输入
+        const handleSearch = async (event) => {
+            const keyword = event.target.value.trim();
+            
+            if (keyword.length === 0) {
+                document.getElementById('results').innerHTML = '';
+                return;
+            }
+
+            const results = await searchAPI(keyword);
+            renderResults(results);
+        };
+
+        // 事件监听（使用防抖）
+        document.getElementById('searchInput').addEventListener(
+            'input',
+            debounce(handleSearch)
+        );
+    </script>
+</body>
+</html>
