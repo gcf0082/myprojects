@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>动态可折叠示例</title>
+    <style>
+        .collapsible {
+            margin: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .collapsible-header {
+            padding: 10px;
+            background-color: #f0f0f0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .collapsible-content {
+            padding: 10px;
+            display: none;
+        }
+
+        .arrow {
+            font-size: 16px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="collapsibleContainer"></div>
+
+    <script>
+        // 模拟从服务器获取的 JSON 数据
+        const collapsibleData = [
+            {
+                title: "折叠项 1",
+                content: "这是折叠项 1 的内容。点击标题可以展开或折叠。"
+            },
+            {
+                title: "折叠项 2",
+                content: "这是折叠项 2 的内容。点击标题可以展开或折叠。"
+            },
+            {
+                title: "折叠项 3",
+                content: "这是折叠项 3 的内容。点击标题可以展开或折叠。"
+            }
+        ];
+
+        // 动态生成折叠项
+        function createCollapsibleItems(data) {
+            const container = document.getElementById('collapsibleContainer');
+            data.forEach((item, index) => {
+                const id = `collapsible${index + 1}`;
+                const html = `
+                    <div class="collapsible">
+                        <div class="collapsible-header" onclick="toggleCollapsible('${id}')">
+                            <h3>${item.title}</h3>
+                            <span class="arrow">▶</span>
+                        </div>
+                        <div class="collapsible-content" id="${id}">
+                            <p>${item.content}</p>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        // 控制折叠逻辑
+        function toggleCollapsible(id) {
+            const content = document.getElementById(id);
+            const arrow = content.previousElementSibling.querySelector('.arrow');
+            
+            if (content.style.display === 'none' || content.style.display === '') {
+                content.style.display = 'block';
+                arrow.textContent = '▼';
+            } else {
+                content.style.display = 'none';
+                arrow.textContent = '▶';
+            }
+        }
+
+        // 加载时生成折叠项
+        window.onload = () => {
+            createCollapsibleItems(collapsibleData);
+        };
+    </script>
+</body>
+</html>
