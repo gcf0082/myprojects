@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+    <style>
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            padding: 15px;
+            border-radius: 5px;
+            color: white;
+            opacity: 0; /* 初始透明度为0 */
+            transform: translateX(120%); /* 初始位置在屏幕外 */
+            transition: all 0.5s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* 颜色定义保持原样 */
+        .success { background-color: #4CAF50; }
+        .error { background-color: #f44336; }
+        .warning { background-color: #ff9800; }
+
+        .close-btn {
+            margin-left: auto;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <button onclick="showNotification('success', '操作成功！')">成功</button>
+    <button onclick="showNotification('error', '发生错误！')">错误</button>
+    <button onclick="showNotification('warning', '警告信息！')">警告</button>
+
+    <script>
+        function showNotification(type, message) {
+            const icons = {
+                success: 'fa-circle-check',
+                error: 'fa-circle-xmark',
+                warning: 'fa-triangle-exclamation'
+            };
+
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fa-solid ${icons[type]}"></i>
+                ${message}
+                <span class="close-btn" onclick="this.parentElement.remove()">&times;</span>
+            `;
+
+            document.body.appendChild(notification);
+            
+            // 使用requestAnimationFrame确保样式生效
+            requestAnimationFrame(() => {
+                notification.classList.add('show');
+                
+                // 自动关闭
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    setTimeout(() => notification.remove(), 500); // 等待过渡动画完成
+                }, 2500);
+            });
+        }
+    </script>
+</body>
+</html>
