@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>标签过滤应用</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .filter-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .tag-label {
+            display: inline-block;
+            margin: 5px;
+            padding: 8px 15px;
+            background-color: #e0e0e0;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tag-label.selected {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .item-card {
+            margin: 10px 0;
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .item-tags {
+            margin-top: 10px;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 8px;
+            margin: 2px;
+            background-color: #e0e0e0;
+            border-radius: 12px;
+            font-size: 0.9em;
+        }
+
+        input[type="checkbox"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="filter-section">
+        <h3>筛选标签（多选）：</h3>
+        <div id="tag-filters"></div>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        // 示例数据
+        const items = [
+            {
+                id: 1,
+                title: "项目1",
+                tags: ["前端", "JavaScript", "HTML"]
+            },
+            {
+                id: 2,
+                title: "项目2",
+                tags: ["后端", "Python", "数据库"]
+            },
+            {
+                id: 3,
+                title: "项目3",
+                tags: ["前端", "CSS", "响应式设计"]
+            },
+            {
+                id: 4,
+                title: "项目4",
+                tags: ["移动开发", "React Native", "JavaScript"]
+            },
+            {
+                id: 5,
+                title: "项目5",
+                tags: ["后端", "Java", "微服务"]
+            }
+        ];
+
+        // 初始化应用
+        function initApp() {
+            // 获取所有唯一标签
+            const allTags = [...new Set(items.flatMap(item => item.tags))];
+            
+            // 创建标签过滤器
+            const tagFilters = document.getElementById('tag-filters');
+            allTags.forEach(tag => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'tag-label';
+                wrapper.innerHTML = `
+                    <input type="checkbox" id="${tag}" value="${tag}">
+                    <label for="${tag}">${tag}</label>
+                `;
+                wrapper.querySelector('input').addEventListener('change', updateResults);
+                tagFilters.appendChild(wrapper);
+            });
+
+            // 初始渲染
+            updateResults();
+        }
+
+        // 更新结果列表
+        function updateResults() {
+            // 获取选中的标签
+            const selectedTags = [...document.querySelectorAll('input[type="checkbox"]:checked')]
+                                .map(checkbox => checkbox.value);
+
+            // 过滤项目
+            const filteredItems = selectedTags.length === 0 
+                ? items 
+                : items.filter(item => 
+                    item.tags.some(tag => selectedTags.includes(tag))
+                );
+
+            // 渲染结果
+            const results = document.getElementById('results');
+            results.innerHTML = filteredItems.map(item => `
+                <div class="item-card">
+                    <h3>${item.title}</h3>
+                    <div class="item-tags">
+                        ${item.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            // 更新标签样式
+            document.querySelectorAll('.tag-label').forEach(wrapper => {
+                const checkbox = wrapper.querySelector('input');
+                wrapper.classList.toggle('selected', checkbox.checked);
+            });
+        }
+
+        // 初始化应用
+        initApp();
+    </script>
+</body>
+</html>
