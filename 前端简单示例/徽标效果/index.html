@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+    <style>
+        .badge-container {
+            position: relative;
+            display: inline-block;
+            margin: 20px;
+        }
+
+        /* 基础按钮样式 */
+        .badge-button {
+            padding: 12px 24px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .badge-button:hover {
+            background-color: #45a049;
+        }
+
+        /* 数字徽标样式 */
+        .number-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background-color: #ff4444;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        /* 小圆点徽标样式 */
+        .dot-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 12px;
+            height: 12px;
+            background-color: #ff4444;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+    </style>
+</head>
+<body>
+    <!-- 数字徽标按钮 -->
+    <div class="badge-container">
+        <button class="badge-button">
+            消息通知
+            <span class="number-badge">5</span>
+        </button>
+    </div>
+
+    <!-- 小圆点徽标按钮 -->
+    <div class="badge-container">
+        <button class="badge-button">
+            系统设置
+            <span class="dot-badge"></span>
+        </button>
+    </div>
+</body>
+</html>
