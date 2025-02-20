@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Dynamic File Tree</title>
+
+    <style>
+
+        /* 保持之前的样式不变 */
+
+        .file-tree { font-family: Consolas, monospace; font-size: 14px; color: #cccccc; background-color: #252526; padding: 10px; user-select: none; }
+
+        .tree-list { list-style: none; padding-left: 20px; margin: 0; }
+
+        .tree-item { padding: 2px 0; cursor: pointer; white-space: nowrap; }
+
+        .tree-item:hover { background-color: #2a2d2e; }
+
+        .tree-item.selected { background-color: #37373d; }
+
+        .folder::before { content: '▶'; font-size: 10px; margin-right: 5px; color: #858585; }
+
+        .folder.expanded::before { content: '▼'; }
+
+        .file::before { content: '📄'; margin-right: 5px; }
+
+        .hidden { display: none; }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="file-tree" id="fileTreeContainer"></div>
+
+
+
+<script>
+
+// 模拟的文件树数据
+
+const fileTreeData = [
+
+    {
+
+        name: "src",
+
+        type: "folder",
+
+        children: [
+
+            {
+
+                name: "components",
+
+                type: "folder",
+
+                children: [
+
+                    { name: "Button.js", type: "file" },
+
+                    { name: "Header.js", type: "file" }
+
+                ]
+
+            },
+
+            { name: "index.js", type: "file" },
+
+            { name: "utils.js", type: "file" }
+
+        ]
+
+    },
+
+    {
+
+        name: "public",
+
+        type: "folder",
+
+        children: [
+
+            { name: "index.html", type: "file" },
+
+            { name: "style.css", type: "file" }
+
+        ]
+
+    },
+
+    { name: "package.json", type: "file" }
+
+];
+
+
+
+// 递归生成树节点
+
+function createTreeItem(itemData) {
+
+    const li = document.createElement('li');
+
+    li.className = `tree-item ${itemData.type}`;
+
+    li.textContent = itemData.name;
+
+    
+
+    if (itemData.type === 'folder') {
+
+        const ul = document.createElement('ul');
+
+        ul.className = 'tree-list hidden';
+
+        
+
+        if (itemData.children) {
+
+            itemData.children.forEach(child => {
+
+                ul.appendChild(createTreeItem(child));
+
+            });
+
+        }
+
+        
+
+        li.appendChild(ul);
+
+    }
+
+    
+
+    return li;
+
+}
+
+
+
+// 初始化文件树
+
+function initFileTree(containerId, data) {
+
+    const container = document.getElementById(containerId);
+
+    const rootUl = document.createElement('ul');
+
+    rootUl.className = 'tree-list';
+
+    
+
+    data.forEach(item => {
+
+        rootUl.appendChild(createTreeItem(item));
+
+    });
+
+    
+
+    container.appendChild(rootUl);
+
+}
+
+
+
+// 事件代理处理点击
+
+document.getElementById('fileTreeContainer').addEventListener('click', (e) => {
+
+    const target = e.target.closest('.tree-item');
+
+    if (!target) return;
+
+
+
+    // 处理文件夹展开/收起
+
+    if (target.classList.contains('folder')) {
+
+        const ul = target.querySelector('ul');
+
+        if (ul) {
+
+            ul.classList.toggle('hidden');
+
+            target.classList.toggle('expanded');
+
+        }
+
+    }
+
+
+
+    // 处理选中状态
+
+    document.querySelectorAll('.tree-item').forEach(item => {
+
+        item.classList.remove('selected');
+
+    });
+
+    target.classList.add('selected');
+
+});
+
+
+
+// 初始化文件树
+
+initFileTree('fileTreeContainer', fileTreeData);
+
+
+
+/* 操作示例：
+
+// 动态添加节点示例（API示例）
+
+function addNewItem(parentElement, itemData) {
+
+    const newItem = createTreeItem(itemData);
+
+    parentElement.querySelector('ul').appendChild(newItem);
+
+}
+
+
+
+// 修改数据后的刷新方法（需要根据具体需求实现）
+
+function refreshFileTree() {
+
+    // 先清空容器再重新生成
+
+    const container = document.getElementById('fileTreeContainer');
+
+    container.innerHTML = '';
+
+    initFileTree('fileTreeContainer', fileTreeData);
+
+}
+
+*/
+
+</script>
+
+</body>
+
+</html>
