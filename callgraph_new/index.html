@@ -330,7 +330,9 @@
     });
 
     // 初始化 Graphviz 实例
-    const graphviz = d3.select("#graph").graphviz();
+    const graphviz = d3.select("#graph").graphviz().width(window.innerWidth) // 设置为窗口宽度
+                                                    .height(window.innerHeight) // 设置为窗口高度
+                                                    .fit(false);
 
     // 更新可见性和高亮状态
     function updateVisibility() {
