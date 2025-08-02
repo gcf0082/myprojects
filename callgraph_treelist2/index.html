@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Function Call Chain Visualizer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body, html { height: 100%; margin: 0; overflow: hidden; }
+        .container-fluid { height: 100vh; display: flex; }
+        .left-panel { width: 40%; height: 100%; overflow-y: auto; border-right: 1px solid #dee2e6; padding: 10px; }
+        .right-panel { width: 60%; height: 100%; overflow-y: auto; padding: 10px; }
+        .call-list { list-style: none; padding: 0; font-size: 14px; }
+        .call-item { padding: 5px 10px; cursor: pointer; position: relative; display: flex; align-items: center; }
+        .call-item:hover { background-color: #f8f9fa; }
+        .toggle-button { display: inline-block; width: 20px; font-size: 18px; margin-right: 5px; }
+        .call-item.has-children .toggle-button::before { content: '▸'; }
+        .call-item.expanded .toggle-button::before { content: '▾'; }
+        .call-item.hidden { display: none; }
+        .highlight { background-color: #fff3cd; }
+        .function-text { flex-grow: 1; }
+        .code-panel { white-space: pre-wrap; font-family: monospace; font-size: 14px; }
+        .search-bar { margin-bottom: 10px; }
+        .filter-bar { margin-bottom: 10px; }
+        .context-menu { position: absolute; background: white; border: 1px solid #ccc; z-index: 1000; }
+        .context-menu div { padding: 5px 10px; cursor: pointer; }
+        .context-menu div:hover { background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="left-panel">
+            <div class="search-bar">
+                <input type="text" class="form-control" id="searchInput" placeholder="Search functions...">
+            </div>
+            <div class="filter-bar">
+                <input type="text" class="form-control" id="filterInput" placeholder="Filter functions (comma-separated)...">
+                <button class="btn btn-primary btn-sm mt-2" onclick="applyFilter()">Apply Filter</button>
+            </div>
+            <ul class="call-list" id="callList"></ul>
+        </div>
+        <div class="right-panel">
+            <pre class="code-panel" id="codePanel">Select a function to view its code.</pre>
+        </div>
+    </div>
+    <div class="context-menu" id="contextMenu" style="display: none;">
+        <div onclick="copyFunctionName()">Copy Function Name</div>
+        <div onclick="toggleNode()">Toggle Collapse/Expand</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const callData = {
+            calls: [
+                {"caller": "mainA", "callee": "functionXXX", "line": 100},
+                {"caller": "main", "callee": "functionA", "line": 101},
+                {"caller": "main", "callee": "functionB", "line": 102},
+                {"caller": "functionA", "callee": "functionA1", "line": 103},
+                {"caller": "functionA", "callee": "functionA2", "line": 104},
+                {"caller": "functionB", "callee": "functionB1", "line": 105},
+                {"caller": "functionB", "callee": "functionB2", "line": 106}
+            ]
+        };
+
+        let callTree = {};
+        let expandedNodes = new Set();
+        let filteredFunctions = new Set();
+
+        function buildCallTree() {
+            callTree = {};
+            callData.calls.forEach(({ caller, callee, line }) => {
+                if (!callTree[caller]) callTree[caller] = { callees: [], line: null };
+                callTree[caller].callees.push({ name: callee, line });
+                if (!callTree[callee]) callTree[callee] = { callees: [], line };
+            });
+        }
+
+        function renderCallTree() {
+            const callList = document.getElementById('callList');
+            callList.innerHTML = '';
+            const visited = new Set();
+            function renderNode(node, depth = 0, path = []) {
+                if (visited.has(node)) return; // Handle cycles
+                visited.add(node);
+                const li = document.createElement('li');
+                li.className = `call-item${callTree[node].callees.length ? ' has-children' : ''}${expandedNodes.has(node) ? ' expanded' : ''}${filteredFunctions.size && !filteredFunctions.has(node) ? ' hidden' : ''}`;
+                li.style.marginLeft = `${depth * 20}px`;
+                li.dataset.function = node;
+                li.dataset.line = callTree[node].line || 'N/A';
+
+                const toggleButton = document.createElement('span');
+                toggleButton.className = 'toggle-button';
+                if (callTree[node].callees.length) {
+                    toggleButton.onclick = (e) => {
+                        e.stopPropagation();
+                        if (expandedNodes.has(node)) {
+                            expandedNodes.delete(node);
+                        } else {
+                            expandedNodes.add(node);
+                        }
+                        renderCallTree();
+                    };
+                }
+                const textSpan = document.createElement('span');
+                textSpan.className = 'function-text';
+                textSpan.textContent = node;
+                textSpan.onclick = (e) => {
+                    e.stopPropagation();
+                    showCode(node, callTree[node].line);
+                };
+
+                li.appendChild(toggleButton);
+                li.appendChild(textSpan);
+                li.oncontextmenu = (e) => showContextMenu(e, node);
+                callList.appendChild(li);
+
+                if (expandedNodes.has(node)) {
+                    callTree[node].callees.forEach(callee => {
+                        if (!path.includes(callee.name)) {
+                            renderNode(callee.name, depth + 1, [...path, node]);
+                        }
+                    });
+                }
+            }
+            Object.keys(callTree).forEach(node => {
+                if (!callData.calls.some(call => call.callee === node)) {
+                    renderNode(node);
+                }
+            });
+        }
+
+        function showCode(func, line) {
+            const codePanel = document.getElementById('codePanel');
+            codePanel.textContent = `// Pseudo-code for ${func}\nfunction ${func}() {\n    // Line ${line || 'N/A'}\n    // Add your code here\n}`;
+        }
+
+        function showContextMenu(e, func) {
+            e.preventDefault();
+            const contextMenu = document.getElementById('contextMenu');
+            contextMenu.style.left = `${e.clientX}px`;
+            contextMenu.style.top = `${e.clientY}px`;
+            contextMenu.style.display = 'block';
+            contextMenu.dataset.function = func;
+        }
+
+        function copyFunctionName() {
+            const func = document.getElementById('contextMenu').dataset.function;
+            navigator.clipboard.writeText(func);
+            hideContextMenu();
+        }
+
+        function toggleNode() {
+            const func = document.getElementById('contextMenu').dataset.function;
+            if (expandedNodes.has(func)) {
+                collapseNodeRecursively(func);
+            } else {
+                expandNodeRecursively(func);
+            }
+            renderCallTree();
+            hideContextMenu();
+        }
+
+        function expandNodeRecursively(node, visited = new Set()) {
+            if (visited.has(node)) return; // Handle cycles
+            visited.add(node);
+            expandedNodes.add(node);
+            callTree[node].callees.forEach(callee => {
+                expandNodeRecursively(callee.name, visited);
+            });
+        }
+
+        function collapseNodeRecursively(node, visited = new Set()) {
+            if (visited.has(node)) return; // Handle cycles
+            visited.add(node);
+            expandedNodes.delete(node);
+            callTree[node].callees.forEach(callee => {
+                collapseNodeRecursively(callee.name, visited);
+            });
+        }
+
+        function hideContextMenu() {
+            document.getElementById('contextMenu').style.display = 'none';
+        }
+
+        function searchHighlight() {
+            const searchInput = document.getElementById('searchInput').value.toLowerCase();
+            document.querySelectorAll('.call-item').forEach(item => {
+                const func = item.dataset.function.toLowerCase();
+                item.classList.toggle('highlight', searchInput && func.includes(searchInput));
+            });
+        }
+
+        function applyFilter() {
+            const filterInput = document.getElementById('filterInput').value;
+            filteredFunctions = new Set(filterInput.split(',').map(f => f.trim()).filter(f => f));
+            renderCallTree();
+        }
+
+        document.getElementById('searchInput').addEventListener('input', searchHighlight);
+        document.addEventListener('click', hideContextMenu);
+        document.getElementById('callList').addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const list = document.getElementById('callList');
+            list.scrollTop += e.deltaY;
+        });
+
+        buildCallTree();
+        renderCallTree();
+    </script>
+</body>
+</html>
