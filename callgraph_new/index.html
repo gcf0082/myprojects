@@ -1,0 +1,873 @@
+<!-- Version: 1.5.0 -->
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+  <!-- 引入 Bootstrap CSS 和 JS 用于布局和交互 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    /* 设置页面和容器高度为视口高度，禁止溢出 */
+    html, body {
+      height: 100vh;
+      margin: 0;
+      overflow: hidden;
+    }
+    /* 确保 Bootstrap 容器占满视口 */
+    .container-fluid {
+      height: 100vh;
+    }
+    /* 图表区域样式，占满高度 */
+    #graph {
+      height: 100%;
+      overflow: hidden;
+    }
+    /* 细节面板样式，支持滚动，添加背景和边框 */
+    #details {
+      height: 100%;
+      overflow-y: auto;
+      padding: 16px;
+      background: #f5f5f5;
+      border-left: 1px solid #dee2e6;
+    }
+    /* 上下文菜单定位和阴影效果 */
+    .dropdown-menu {
+      position: absolute !important;
+      z-index: 1000;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+    }
+    /* 子菜单样式，定位于父菜单右侧 */
+    .dropdown-submenu {
+      position: relative;
+    }
+    .dropdown-submenu .dropdown-menu {
+      top: 0;
+      left: 100%;
+      margin-top: -1px;
+    }
+    .dropdown-submenu:hover > .dropdown-menu {
+      display: block;
+    }
+    /* 自定义工具提示样式，固定定位，限制宽度 */
+    .tooltip-custom {
+      position: absolute;
+      z-index: 1000;
+      max-width: 300px;
+    }
+    /* 工具提示表单卡片样式，深色主题 */
+    .tooltip-custom .card {
+      background: #333;
+      color: #fff;
+      border: none;
+    }
+    /* 工具提示表单输入框样式 */
+    .tooltip-custom .card input[type="text"],
+    .tooltip-custom .card select {
+      background: #555;
+      color: #fff;
+      border: 1px solid #777;
+    }
+    .tooltip-custom .card input[type="color"] {
+      padding: 2px;
+      width: 100%;
+    }
+    /* 工具提示表单按钮样式 */
+    .tooltip-custom .card button {
+      background: #555;
+      color: #fff;
+      border: 1px solid #777;
+    }
+    .tooltip-custom .card button:hover {
+      background: #666;
+    }
+    /* 默认工具提示标签样式，深色背景 */
+    .tooltip-label {
+      position: absolute;
+      background: #333;
+      color: #fff;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1000;
+      max-width: 300px;
+      white-space: normal;
+    }
+    /* 节点、边和点击区域的渐隐动画 */
+    .node, .edge, .edge-hitarea {
+      transition: opacity 0.3s;
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <!-- 引入 D3.js 和 Graphviz 用于图表渲染 -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/@hpcc-js/wasm@2.20.0/dist/graphviz.umd.js"></script>
+  <script src="https://unpkg.com/d3-graphviz@5.6.0/build/d3-graphviz.js"></script>
+  <!-- 主容器：左右 50/50 布局 -->
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-6" id="graph"></div> <!-- 图表区域 -->
+      <div class="col-6" id="details"> <!-- 细节面板 -->
+        <h3>细节</h3>
+        <p id="status">选择节点或边以查看详情。</p>
+      </div>
+    </div>
+  </div>
+  <!-- 工具提示容器 -->
+  <div id="tooltip" class="tooltip-custom" style="display: none;"></div>
+  <script>
+    // 示例 JSON 数据：定义节点和边
+    const jsonData = {
+      nodes: [
+        { id: "func1", label: "Function 1", color: "red" },
+        { id: "func2", label: "Function 2", color: "blue" },
+        { id: "func3", label: "Function 3", color: "green" },
+        { id: "func4", label: "Function 4", color: "yellow" }
+      ],
+      edges: [
+        { from: "func1", to: "func2", label: "call1", style: "dashed" },
+        { from: "func2", to: "func3", label: "call2", style: "solid" },
+        { from: "func2", to: "func4", label: "call3", style: "dotted" }
+      ]
+    };
+
+    // 状态变量：管理可见性、高亮和布局
+    const hiddenDownstream = {}; // 隐藏下游节点和边
+    const hiddenUpstream = {}; // 隐藏上游节点和边
+    const highlightedUpstream = {}; // 高亮上游节点和边
+    const highlightedDownstream = {}; // 高亮下游节点和边
+    const showOnlyState = {}; // 仅显示模式（上游或下游）
+    let layoutDirection = "TB"; // 默认布局：从上到下
+    let isTooltipFormActive = false; // 跟踪 Ctrl+悬停表单状态
+    let tooltipX = 0; // 工具提示固定 X 坐标
+    let tooltipY = 0; // 工具提示固定 Y 坐标
+
+    // 更新细节面板：显示节点或边的信息
+    function updateDetails(data, type) {
+      const details = d3.select("#details");
+      details.selectAll("table").remove(); // 清除现有表格
+      details.select("#status").text("选择节点或边以查看详情。");
+
+      if (!data) return;
+
+      // 创建 Bootstrap 表格显示信息
+      const table = details.append("table").attr("class", "table table-bordered table-hover");
+      if (type === "node") {
+        table.append("tr").html(`<td>ID</td><td>${data.id}</td>`);
+        table.append("tr").html(`<td>标签</td><td>${data.label}</td>`);
+        table.append("tr").html(`<td>颜色</td><td>${data.color}</td>`);
+      } else if (type === "edge") {
+        table.append("tr").html(`<td>起点</td><td>${data.from}</td>`);
+        table.append("tr").html(`<td>终点</td><td>${data.to}</td>`);
+        table.append("tr").html(`<td>标签</td><td>${data.label}</td>`);
+        table.append("tr").html(`<td>样式</td><td>${data.style}</td>`);
+      }
+    }
+
+    // 获取下游节点和边：递归遍历
+    function getDownstreamElements(nodeId, edges, includeSelf = false) {
+      const downstreamNodes = includeSelf ? new Set([nodeId]) : new Set();
+      const downstreamEdges = new Set();
+      function traverse(id) {
+        edges.forEach((edge, index) => {
+          if (edge.from === id && !downstreamNodes.has(edge.to)) {
+            downstreamNodes.add(edge.to);
+            downstreamEdges.add(`edge${index + 1}`);
+            traverse(edge.to);
+          }
+        });
+      }
+      traverse(nodeId);
+      return { nodes: downstreamNodes, edges: downstreamEdges };
+    }
+
+    // 获取上游节点和边：递归遍历
+    function getUpstreamElements(nodeId, edges, includeSelf = false) {
+      const upstreamNodes = includeSelf ? new Set([nodeId]) : new Set();
+      const upstreamEdges = new Set();
+      function traverse(id) {
+        edges.forEach((edge, index) => {
+          if (edge.to === id && !upstreamNodes.has(edge.from)) {
+            upstreamNodes.add(edge.from);
+            upstreamEdges.add(`edge${index + 1}`);
+            traverse(edge.from);
+          }
+        });
+      }
+      traverse(nodeId);
+      return { nodes: upstreamNodes, edges: upstreamEdges };
+    }
+
+    // 转换 JSON 为 DOT 格式：用于 Graphviz 渲染
+    function jsonToDot(json) {
+      let dot = `digraph {\n  rankdir=${layoutDirection};\n`; // 设置布局方向
+      json.nodes.forEach(node => {
+        const color = node.color || "lightgrey"; // 默认填充色
+        dot += `  ${node.id} [label="${node.label}", style="filled", fillcolor="${color}"];\n`;
+      });
+      json.edges.forEach((edge, index) => {
+        const style = edge.style || "solid"; // 默认边样式
+        dot += `  ${edge.from} -> ${edge.to} [id="edge${index + 1}", label="${edge.label}", style="${style}"];\n`;
+      });
+      dot += '}';
+      return dot;
+    }
+
+    // 保存为图片：将 SVG 导出为 PNG
+    function saveAsImage() {
+      const svg = d3.select("#graph svg").node();
+      const serializer = new XMLSerializer();
+      let svgString = serializer.serializeToString(svg);
+      // 添加导出样式
+      const style = `
+        .node polygon { stroke: black; stroke-width: 1; }
+        .edge path { stroke-width: 3; }
+        .edge text { fill: black; }
+        .edge-hitarea { display: none; }
+      `;
+      svgString = svgString.replace('<svg', `<svg xmlns="http://www.w3.org/2000/svg"><style>${style}</style>`);
+      const canvas = document.createElement("canvas");
+      const bbox = svg.getBBox();
+      canvas.width = bbox.width + 20;
+      canvas.height = bbox.height + 20;
+      const context = canvas.getContext("2d");
+      const img = new Image();
+      const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(svgBlob);
+      img.onload = function() {
+        context.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        const link = document.createElement("a");
+        link.download = "graph.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      };
+      img.src = url;
+    }
+
+    // 重置可见性状态：显示所有节点和边
+    function resetVisibility() {
+      Object.keys(hiddenDownstream).forEach(key => delete hiddenDownstream[key]);
+      Object.keys(hiddenUpstream).forEach(key => delete hiddenUpstream[key]);
+      Object.keys(highlightedUpstream).forEach(key => delete highlightedUpstream[key]);
+      Object.keys(highlightedDownstream).forEach(key => delete highlightedDownstream[key]);
+      Object.keys(showOnlyState).forEach(key => delete showOnlyState[key]);
+      updateVisibility();
+    }
+
+    // 创建工具提示表单：用于编辑节点或边
+    function createTooltipForm(data, type) {
+      let html = `
+        <div class="card">
+          <div class="card-body">
+            <form>
+      `;
+      if (type === "node") {
+        html += `
+          <div class="mb-3">
+            <label class="form-label">标签:</label>
+            <input type="text" class="form-control" name="label" value="${data.label}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">颜色:</label>
+            <input type="color" class="form-control" name="color" value="${data.color}">
+          </div>
+        `;
+      } else if (type === "edge") {
+        html += `
+          <div class="mb-3">
+            <label class="form-label">标签:</label>
+            <input type="text" class="form-control" name="label" value="${data.label}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">样式:</label>
+            <select class="form-select" name="style">
+              <option value="solid" ${data.style === "solid" ? "selected" : ""}>实线</option>
+              <option value="dashed" ${data.style === "dashed" ? "selected" : ""}>虚线</option>
+              <option value="dotted" ${data.style === "dotted" ? "selected" : ""}>点线</option>
+            </select>
+          </div>
+        `;
+      }
+      html += `
+              <div>
+                <button type="button" class="btn btn-secondary me-2" onclick="saveTooltipForm(this, '${type}')">保存</button>
+                <button type="button" class="btn btn-secondary" onclick="hideTooltip()">取消</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+      return html;
+    }
+
+    // 保存工具提示表单：记录编辑内容到控制台
+    function saveTooltipForm(button, type) {
+      const form = button.closest("form");
+      const formData = new FormData(form);
+      const data = {};
+      formData.forEach((value, key) => {
+        data[key] = value;
+      });
+      console.log(`保存 ${type} 数据:`, data);
+      hideTooltip();
+      isTooltipFormActive = false;
+    }
+
+    // 隐藏工具提示
+    function hideTooltip() {
+      d3.select("#tooltip").style("display", "none").html("");
+      isTooltipFormActive = false;
+      tooltipX = 0;
+      tooltipY = 0;
+    }
+
+    // 点击空白区域隐藏工具提示
+    d3.select(document).on("click", function(event) {
+      if (isTooltipFormActive && !event.target.closest(".tooltip-custom")) {
+        hideTooltip();
+      }
+    });
+
+    // 初始化 Graphviz 实例
+    const graphviz = d3.select("#graph").graphviz();
+
+    // 更新可见性和高亮状态
+    function updateVisibility() {
+      const duration = 300; // 渐隐动画时长
+      const t = d3.transition().duration(duration);
+
+      /* 重置所有节点和边的样式 */
+      d3.selectAll(".node")
+        .style("display", "block")
+        .style("opacity", 1)
+        .select("polygon")
+        .attr("fill", function() {
+          const nodeId = d3.select(this.parentNode).attr("data-id");
+          const node = jsonData.nodes.find(n => n.id === nodeId);
+          return node ? (node.color || "lightgrey") : "lightgrey";
+        });
+      d3.selectAll(".edge")
+        .style("display", "block")
+        .style("opacity", 1)
+        .select("path")
+        .attr("stroke-width", 3);
+      d3.selectAll(".edge-hitarea")
+        .style("display", "block")
+        .style("opacity", 1)
+        .select("path")
+        .attr("stroke-width", 10);
+
+      /* 处理仅显示模式 */
+      const showOnlyNode = Object.keys(showOnlyState).find(nodeId => showOnlyState[nodeId]);
+      if (showOnlyNode) {
+        const mode = showOnlyState[showOnlyNode];
+        const elements = mode === "upstream"
+          ? getUpstreamElements(showOnlyNode, jsonData.edges, true)
+          : getDownstreamElements(showOnlyNode, jsonData.edges, true);
+        // 隐藏非相关节点
+        d3.selectAll(".node")
+          .filter(function() { return !elements.nodes.has(d3.select(this).attr("data-id")); })
+          .transition(t)
+          .style("opacity", 0)
+          .on("end", function() { d3.select(this).style("display", "none"); });
+        elements.nodes.forEach(n => {
+          d3.selectAll(`.node[data-id="${n}"]`)
+            .style("display", "block")
+            .transition(t)
+            .style("opacity", 1);
+        });
+        // 隐藏非相关边
+        d3.selectAll(".edge")
+          .filter(function() { return !elements.edges.has(d3.select(this).attr("id")); })
+          .transition(t)
+          .style("opacity", 0)
+          .on("end", function() { d3.select(this).style("display", "none"); });
+        d3.selectAll(".edge-hitarea")
+          .filter(function() { return !elements.edges.has(d3.select(this).attr("id").replace("hitarea-", "")); })
+          .transition(t)
+          .style("opacity", 0)
+          .on("end", function() { d3.select(this).style("display", "none"); });
+        elements.edges.forEach(e => {
+          d3.select(`#${e}`)
+            .style("display", "block")
+            .transition(t)
+            .style("opacity", 1);
+          d3.select(`#hitarea-${e}`)
+            .style("display", "block")
+            .transition(t)
+            .style("opacity", 1);
+        });
+        return;
+      }
+
+      /* 处理隐藏下游 */
+      Object.keys(hiddenDownstream).forEach(nodeId => {
+        if (hiddenDownstream[nodeId]) {
+          const { nodes, edges } = getDownstreamElements(nodeId, jsonData.edges);
+          nodes.forEach(n => {
+            d3.selectAll(`.node[data-id="${n}"]`)
+              .transition(t)
+              .style("opacity", 0)
+              .on("end", function() { d3.select(this).style("display", "none"); });
+          });
+          edges.forEach(e => {
+            d3.select(`#${e}`)
+              .transition(t)
+              .style("opacity", 0)
+              .on("end", function() { d3.select(this).style("display", "none"); });
+            d3.select(`#hitarea-${e}`)
+              .transition(t)
+              .style("opacity", 0)
+              .on("end", function() { d3.select(this).style("display", "none"); });
+          });
+        } else {
+          const { nodes, edges } = getDownstreamElements(nodeId, jsonData.edges);
+          nodes.forEach(n => {
+            d3.selectAll(`.node[data-id="${n}"]`)
+              .style("display", "block")
+              .transition(t)
+              .style("opacity", 1);
+          });
+          edges.forEach(e => {
+            d3.select(`#${e}`)
+              .style("display", "block")
+              .transition(t)
+              .style("opacity", 1);
+            d3.select(`#hitarea-${e}`)
+              .style("display", "block")
+              .transition(t)
+              .style("opacity", 1);
+          });
+        }
+      });
+
+      /* 处理隐藏上游 */
+      Object.keys(hiddenUpstream).forEach(nodeId => {
+        if (hiddenUpstream[nodeId]) {
+          const { nodes, edges } = getUpstreamElements(nodeId, jsonData.edges);
+          nodes.forEach(n => {
+            d3.selectAll(`.node[data-id="${n}"]`)
+              .transition(t)
+              .style("opacity", 0)
+              .on("end", function() { d3.select(this).style("display", "none"); });
+          });
+          edges.forEach(e => {
+            d3.select(`#${e}`)
+              .transition(t)
+              .style("opacity", 0)
+              .on("end", function() { d3.select(this).style("display", "none"); });
+            d3.select(`#hitarea-${e}`)
+              .transition(t)
+              .style("opacity", 0)
+              .on("end", function() { d3.select(this).style("display", "none"); });
+          });
+        } else {
+          const { nodes, edges } = getUpstreamElements(nodeId, jsonData.edges);
+          nodes.forEach(n => {
+            d3.selectAll(`.node[data-id="${n}"]`)
+              .style("display", "block")
+              .transition(t)
+              .style("opacity", 1);
+          });
+          edges.forEach(e => {
+            d3.select(`#${e}`)
+              .style("display", "block")
+              .transition(t)
+              .style("opacity", 1);
+            d3.select(`#hitarea-${e}`)
+              .style("display", "block")
+              .transition(t)
+              .style("opacity", 1);
+          });
+        }
+      });
+
+      /* 处理高亮上游（橙色） */
+      Object.keys(highlightedUpstream).forEach(nodeId => {
+        if (highlightedUpstream[nodeId]) {
+          const { nodes, edges } = getUpstreamElements(nodeId, jsonData.edges);
+          nodes.forEach(n => {
+            d3.selectAll(`.node[data-id="${n}"]`).select("polygon").attr("fill", "orange");
+          });
+          edges.forEach(e => {
+            d3.select(`#${e}`).select("path").attr("stroke", "orange").attr("stroke-width", 5);
+            d3.select(`#hitarea-${e}`).select("path").attr("stroke", "orange").attr("stroke-width", 10);
+          });
+        }
+      });
+
+      /* 处理高亮下游（橙色，包含自身） */
+      Object.keys(highlightedDownstream).forEach(nodeId => {
+        if (highlightedDownstream[nodeId]) {
+          const { nodes, edges } = getDownstreamElements(nodeId, jsonData.edges, true);
+          nodes.forEach(n => {
+            d3.selectAll(`.node[data-id="${n}"]`).select("polygon").attr("fill", "orange");
+          });
+          edges.forEach(e => {
+            d3.select(`#${e}`).select("path").attr("stroke", "orange").attr("stroke-width", 5);
+            d3.select(`#hitarea-${e}`).select("path").attr("stroke", "orange").attr("stroke-width", 10);
+          });
+        }
+      });
+    }
+
+    // 渲染图表
+    function renderGraph() {
+      const dot = jsonToDot(jsonData); // 转换为 DOT 格式
+      graphviz.renderDot(dot, function() {
+        // 为节点添加 data-id 属性
+        d3.selectAll(".node").each(function() {
+          const nodeId = d3.select(this).select("title").text();
+          d3.select(this).attr("data-id", nodeId);
+        });
+
+        // 移除原生 <title> 标签，禁用默认工具提示
+        d3.selectAll("title").remove();
+
+        // 设置边粗细和初始透明度
+        d3.selectAll(".edge")
+          .style("opacity", 1)
+          .select("path")
+          .attr("stroke-width", 3);
+        d3.selectAll(".node")
+          .style("opacity", 1);
+
+        // 为边添加不可见点击区域
+        d3.selectAll(".edge").each(function() {
+          const edgeId = d3.select(this).attr("id");
+          const path = d3.select(this).select("path").attr("d");
+          const g = d3.select(this.parentNode)
+            .append("g")
+            .attr("class", "edge-hitarea")
+            .attr("id", `hitarea-${edgeId}`)
+            .style("opacity", 1);
+          g.append("path")
+            .attr("d", path)
+            .attr("stroke", "black")
+            .attr("stroke-opacity", 0)
+            .attr("stroke-width", 10);
+        });
+
+        // 为节点添加事件监听
+        d3.selectAll(".node")
+          .on("click", function(event, d) {
+            event.stopPropagation(); // 阻止事件冒泡
+            const nodeId = d3.select(this).attr("data-id");
+            const nodeData = jsonData.nodes.find(n => n.id === nodeId);
+            if (nodeData) {
+              updateDetails(nodeData, "node"); // 显示节点信息
+            }
+          })
+          .on("contextmenu", function(event, d) {
+            event.preventDefault();
+            event.stopPropagation();
+            showContextMenu(event, "node", this); // 显示节点上下文菜单
+          })
+          .on("mouseover", function(event) {
+            const nodeId = d3.select(this).attr("data-id");
+            const nodeData = jsonData.nodes.find(n => n.id === nodeId);
+            if (nodeData && d3.select(this).style("display") !== "none") {
+              const tooltip = d3.select("#tooltip");
+              if (event.ctrlKey && !isTooltipFormActive) {
+                isTooltipFormActive = true;
+                tooltipX = event.pageX + 10;
+                tooltipY = event.pageY + 10;
+                tooltip.style("display", "block")
+                  .attr("class", "tooltip-custom")
+                  .html(createTooltipForm(nodeData, "node"))
+                  .style("left", tooltipX + "px")
+                  .style("top", tooltipY + "px");
+              } else if (!event.ctrlKey && !isTooltipFormActive) {
+                tooltip.style("display", "block")
+                  .attr("class", "tooltip-label")
+                  .html(`标签: ${nodeData.label}`)
+                  .style("left", (event.pageX + 10) + "px")
+                  .style("top", (event.pageY + 10) + "px");
+              }
+            }
+          })
+          .on("mousemove", function(event) {
+            const nodeId = d3.select(this).attr("data-id");
+            const nodeData = jsonData.nodes.find(n => n.id === nodeId);
+            if (nodeData && d3.select(this).style("display") !== "none" && !isTooltipFormActive) {
+              const tooltip = d3.select("#tooltip");
+              if (event.ctrlKey) {
+                isTooltipFormActive = true;
+                tooltipX = event.pageX + 10;
+                tooltipY = event.pageY + 10;
+                tooltip.style("display", "block")
+                  .attr("class", "tooltip-custom")
+                  .html(createTooltipForm(nodeData, "node"))
+                  .style("left", tooltipX + "px")
+                  .style("top", tooltipY + "px");
+              } else {
+                tooltip.style("display", "block")
+                  .attr("class", "tooltip-label")
+                  .html(`标签: ${nodeData.label}`)
+                  .style("left", (event.pageX + 10) + "px")
+                  .style("top", (event.pageY + 10) + "px");
+              }
+            }
+          })
+          .on("mouseout", function() {
+            if (!isTooltipFormActive) {
+              hideTooltip(); // 隐藏工具提示
+            }
+          });
+
+        // 为边点击区域添加事件监听
+        d3.selectAll(".edge-hitarea")
+          .on("click", function(event, d) {
+            event.stopPropagation();
+            const edgeId = d3.select(this).attr("id").replace("hitarea-", "");
+            const edgeIndex = parseInt(edgeId.replace("edge", "")) - 1;
+            const edgeData = jsonData.edges[edgeIndex];
+            if (edgeData) {
+              updateDetails(edgeData, "edge"); // 显示边信息
+            }
+          })
+          .on("contextmenu", function(event, d) {
+            event.preventDefault();
+            event.stopPropagation();
+            showContextMenu(event, "edge", this); // 显示边上下文菜单
+          })
+          .on("mouseover", function(event) {
+            const edgeId = d3.select(this).attr("id").replace("hitarea-", "");
+            const edgeIndex = parseInt(edgeId.replace("edge", "")) - 1;
+            const edgeData = jsonData.edges[edgeIndex];
+            if (edgeData && d3.select(this).style("display") !== "none") {
+              const tooltip = d3.select("#tooltip");
+              if (event.ctrlKey && !isTooltipFormActive) {
+                isTooltipFormActive = true;
+                tooltipX = event.pageX + 10;
+                tooltipY = event.pageY + 10;
+                tooltip.style("display", "block")
+                  .attr("class", "tooltip-custom")
+                  .html(createTooltipForm(edgeData, "edge"))
+                  .style("left", tooltipX + "px")
+                  .style("top", tooltipY + "px");
+              } else if (!event.ctrlKey && !isTooltipFormActive) {
+                tooltip.style("display", "block")
+                  .attr("class", "tooltip-label")
+                  .html(`标签: ${edgeData.label}`)
+                  .style("left", (event.pageX + 10) + "px")
+                  .style("top", (event.pageY + 10) + "px");
+              }
+            }
+          })
+          .on("mousemove", function(event) {
+            const edgeId = d3.select(this).attr("id").replace("hitarea-", "");
+            const edgeIndex = parseInt(edgeId.replace("edge", "")) - 1;
+            const edgeData = jsonData.edges[edgeIndex];
+            if (edgeData && d3.select(this).style("display") !== "none" && !isTooltipFormActive) {
+              const tooltip = d3.select("#tooltip");
+              if (event.ctrlKey) {
+                isTooltipFormActive = true;
+                tooltipX = event.pageX + 10;
+                tooltipY = event.pageY + 10;
+                tooltip.style("display", "block")
+                  .attr("class", "tooltip-custom")
+                  .html(createTooltipForm(edgeData, "edge"))
+                  .style("left", tooltipX + "px")
+                  .style("top", tooltipY + "px");
+              } else {
+                tooltip.style("display", "block")
+                  .attr("class", "tooltip-label")
+                  .html(`标签: ${edgeData.label}`)
+                  .style("left", (event.pageX + 10) + "px")
+                  .style("top", (event.pageY + 10) + "px");
+              }
+            }
+          })
+          .on("mouseout", function() {
+            if (!isTooltipFormActive) {
+              hideTooltip(); // 隐藏工具提示
+            }
+          });
+
+        // 为 SVG 空白区域添加上下文菜单
+        d3.select("#graph svg")
+          .on("contextmenu", function(event) {
+            event.preventDefault();
+            showContextMenu(event, "background", this);
+          });
+
+        // 点击其他区域隐藏上下文菜单
+        d3.select("body").on("click", hideContextMenu);
+
+        // 应用初始可见性和高亮
+        updateVisibility();
+      });
+    }
+
+    // 显示上下文菜单：支持节点、边和背景
+    function showContextMenu(event, type, element) {
+      d3.selectAll(".dropdown-menu").remove();
+      const menu = d3.select("body")
+        .append("ul")
+        .attr("class", "dropdown-menu")
+        .style("left", event.pageX + "px")
+        .style("top", event.pageY + "px")
+        .style("display", "block");
+
+      let menuItems;
+      if (type === "node") {
+        const nodeId = d3.select(element).attr("data-id");
+        menuItems = [
+          { label: "编辑节点", action: () => console.log(`编辑 ${type}:`, nodeId) },
+          { label: "删除节点", action: () => console.log(`删除 ${type}:`, nodeId) },
+          {
+            label: "可见性",
+            children: [
+              {
+                label: hiddenDownstream[nodeId] ? "显示下游" : "隐藏下游",
+                action: () => {
+                  hiddenDownstream[nodeId] = !hiddenDownstream[nodeId];
+                  delete showOnlyState[nodeId];
+                  updateVisibility();
+                }
+              },
+              {
+                label: hiddenUpstream[nodeId] ? "显示上游" : "隐藏上游",
+                action: () => {
+                  hiddenUpstream[nodeId] = !hiddenUpstream[nodeId];
+                  delete showOnlyState[nodeId];
+                  updateVisibility();
+                }
+              }
+            ]
+          },
+          {
+            label: "高亮",
+            children: [
+              {
+                label: highlightedUpstream[nodeId] ? "移除上游高亮" : "高亮上游",
+                action: () => {
+                  highlightedUpstream[nodeId] = !highlightedUpstream[nodeId];
+                  delete showOnlyState[nodeId];
+                  updateVisibility();
+                }
+              },
+              {
+                label: highlightedDownstream[nodeId] ? "移除下游高亮" : "高亮下游",
+                action: () => {
+                  highlightedDownstream[nodeId] = !highlightedDownstream[nodeId];
+                  delete showOnlyState[nodeId];
+                  updateVisibility();
+                }
+              }
+            ]
+          },
+          {
+            label: "仅显示",
+            children: [
+              {
+                label: showOnlyState[nodeId] === "upstream" ? "显示全部" : "仅显示上游",
+                action: () => {
+                  if (showOnlyState[nodeId] === "upstream") {
+                    delete showOnlyState[nodeId];
+                  } else {
+                    Object.keys(showOnlyState).forEach(key => delete showOnlyState[key]);
+                    showOnlyState[nodeId] = "upstream";
+                  }
+                  updateVisibility();
+                }
+              },
+              {
+                label: showOnlyState[nodeId] === "downstream" ? "显示全部" : "仅显示下游",
+                action: () => {
+                  if (showOnlyState[nodeId] === "downstream") {
+                    delete showOnlyState[nodeId];
+                  } else {
+                    Object.keys(showOnlyState).forEach(key => delete showOnlyState[key]);
+                    showOnlyState[nodeId] = "downstream";
+                  }
+                  updateVisibility();
+                }
+              }
+            ]
+          }
+        ];
+      } else if (type === "edge") {
+        menuItems = [
+          { label: "编辑边", action: () => console.log(`编辑 ${type}:`, d3.select(element).attr("id").replace("hitarea-", "")) },
+          { label: "删除边", action: () => console.log(`删除 ${type}:`, d3.select(element).attr("id").replace("hitarea-", "")) }
+        ];
+      } else { // background
+        menuItems = [
+          {
+            label: "布局",
+            children: [
+              {
+                label: "切换为从左到右",
+                action: () => {
+                  layoutDirection = "LR";
+                  renderGraph();
+                }
+              },
+              {
+                label: "切换为从上到下",
+                action: () => {
+                  layoutDirection = "TB";
+                  renderGraph();
+                }
+              }
+            ]
+          },
+          {
+            label: "保存为图片",
+            action: () => {
+              saveAsImage();
+            }
+          },
+          {
+            label: "显示所有节点和边",
+            action: () => {
+              resetVisibility();
+            }
+          }
+        ];
+      }
+
+      // 递归添加菜单项
+      function appendMenuItems(selection, items) {
+        selection.selectAll("li")
+          .data(items)
+          .enter()
+          .append("li")
+          .attr("class", d => d.children ? "dropdown-submenu" : "dropdown-item")
+          .html(d => `<a class="dropdown-item" href="#">${d.label}${d.children ? ' <span class="caret">▶</span>' : ''}</a>`)
+          .on("click", function(event, d) {
+            if (d.action) {
+              d.action();
+              hideContextMenu();
+            }
+            event.stopPropagation();
+          })
+          .each(function(d) {
+            if (d.children) {
+              const submenu = d3.select(this)
+                .append("ul")
+                .attr("class", "dropdown-menu");
+              appendMenuItems(submenu, d.children);
+            }
+          });
+      }
+
+      appendMenuItems(menu, menuItems);
+    }
+
+    // 隐藏上下文菜单
+    function hideContextMenu() {
+      d3.selectAll(".dropdown-menu").remove();
+    }
+
+    // 初始化细节面板
+    updateDetails(null, null);
+
+    // 初始渲染图表
+    renderGraph();
+  </script>
+</body>
+</html>
