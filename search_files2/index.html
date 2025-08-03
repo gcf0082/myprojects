@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Content Highlighter v2.4.0</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #f5f7fa;
+        }
+        .container-fluid {
+            height: 100vh;
+            display: flex;
+            background: linear-gradient(180deg, #e9ecef 0%, #f5f7fa 100%);
+        }
+        .left-panel {
+            flex: 2;
+            overflow-y: auto;
+            padding: 20px;
+            border-right: 1px solid #dee2e6;
+            background-color: #ffffff;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+        }
+        .middle-panel {
+            flex: 5;
+            overflow-y: auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .right-panel {
+            flex: 5;
+            overflow-y: auto;
+            padding: 20px;
+            background-color: #ffffff;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.05);
+        }
+        .highlight {
+            background-color: #ffd700;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+        .context-line {
+            background-color: #e6f3ff;
+            opacity: 0.9;
+            border-radius: 3px;
+            padding: 10px;
+            margin: 5px 0;
+            cursor: pointer;
+        }
+        .context-line:hover, .match-line:hover, .context-line.active, .match-line.active {
+            background-color: #d1e7ff;
+        }
+        .match-line {
+            background-color: #e6f3ff;
+            opacity: 0.9;
+            border-radius: 3px;
+            padding: 10px;
+            margin: 5px 0;
+            cursor: pointer;
+        }
+        .file-group {
+            margin-bottom: 20px;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .file-group:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .file-group h6 {
+            color: #1a73e8;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            border: 1px solid #e9ecef;
+        }
+        .line-number {
+            display: inline-block;
+            width: 50px;
+            color: #6c757d;
+            text-align: right;
+            padding-right: 10px;
+            user-select: none;
+            font-weight: 500;
+        }
+        .select2-container {
+            width: 100% !important;
+        }
+        .stats-box {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .filter-section {
+            margin-bottom: 20px;
+        }
+        .context-info {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 10px;
+            background-color: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: inline-block;
+        }
+        .btn-primary {
+            background-color: #1a73e8;
+            border-color: #1a73e8;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: #1557b0;
+            transform: translateY(-1px);
+        }
+        h5 {
+            color: #343a40;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        .form-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #495057;
+        }
+        .form-control, .form-control-sm {
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+            transition: border-color 0.2s;
+        }
+        .form-control:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.25);
+        }
+        .badge {
+            font-size: 12px;
+            padding: 5px 8px;
+            background-color: #6c757d;
+        }
+        .context-group {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .pagination {
+            margin-top: 20px;
+            justify-content: center;
+        }
+        .page-link {
+            color: #1a73e8;
+            border-radius: 4px;
+            margin: 0 2px;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        .page-link:hover {
+            background-color: #1a73e8;
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+        .page-item.active .page-link {
+            background-color: #1a73e8;
+            border-color: #1a73e8;
+            color: #ffffff;
+        }
+        .page-item.disabled .page-link {
+            color: #6c757d;
+            pointer-events: none;
+            background-color: #f8f9fa;
+        }
+        /* Custom Select2 Styling */
+        .select2-container--bootstrap-5 .select2-selection--multiple {
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            padding: 2px;
+            background-color: #ffffff;
+            min-height: 38px;
+        }
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+            background-color: #1a73e8;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice:hover {
+            background-color: #1557b0;
+        }
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove {
+            color: #ffffff;
+            margin-left: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove:hover {
+            color: #f8f9fa;
+        }
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-search__field {
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            margin: 2px;
+        }
+        .select2-container--bootstrap-5 .select2-dropdown {
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            background-color: #ffffff;
+        }
+        .select2-container--bootstrap-5 .select2-results__option {
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            padding: 8px 12px;
+            color: #343a40;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .select2-container--bootstrap-5 .select2-results__option--highlighted {
+            background-color: #1a73e8;
+            color: #ffffff;
+        }
+        .select2-container--bootstrap-5 .select2-results__option--selected {
+            background-color: #e9ecef;
+            color: #343a40;
+        }
+        .select2-container--bootstrap-5 .select2-selection__placeholder {
+            color: #6c757d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Left Panel -->
+        <div class="left-panel">
+            <div class="filter-section">
+                <h5>Projects</h5>
+                <select id="projectSelect" multiple="multiple"></select>
+                <button id="loadProjects" class="btn btn-primary btn-sm mt-2 w-100">Load Projects</button>
+            </div>
+            
+            <div class="filter-section">
+                <h5>Filters</h5>
+                <div class="mb-3">
+                    <label for="pathFilter" class="form-label">Path Filter</label>
+                    <input type="text" id="pathFilter" class="form-control form-control-sm" placeholder="e.g., src/utils">
+                </div>
+                <div class="mb-3">
+                    <label for="catalogFilter" class="form-label">Catalog Filter</label>
+                    <select id="catalogFilter" multiple="multiple" class="form-control form-control-sm"></select>
+                </div>
+                <div class="mb-3">
+                    <label for="levelFilter" class="form-label">Level Filter</label>
+                    <select id="levelFilter" multiple="multiple" class="form-control form-control-sm"></select>
+                </div>
+                <div class="mb-3">
+                    <label for="labelFilter" class="form-label">Label Filter</label>
+                    <select id="labelFilter" multiple="multiple" class="form-control form-control-sm"></select>
+                </div>
+                <div class="mb-3">
+                    <label for="contextLines" class="form-label">Context Lines (Middle Panel)</label>
+                    <input type="number" id="contextLines" class="form-control form-control-sm" value="2" min="0" max="10">
+                </div>
+                <button id="applyFilters" class="btn btn-primary btn-sm w-100">Apply Filters</button>
+            </div>
+            
+            <div class="filter-section">
+                <h5>Statistics</h5>
+                <div class="stats-box">
+                    <p>Files: <span id="fileCount">0</span></p>
+                    <p>Categories: <span id="categoryCount">0</span></p>
+                    <p>Levels: <span id="levelCount">0</span></p>
+                    <p>Labels: <span id="labelCount">0</span></p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Middle Panel -->
+        <div class="middle-panel" id="middlePanel">
+            <h5>Search Results</h5>
+            <div id="resultsContainer"></div>
+            <nav>
+                <ul class="pagination" id="pagination"></ul>
+            </nav>
+        </div>
+        
+        <!-- Right Panel -->
+        <div class="right-panel" id="rightPanel">
+            <h5>File Content</h5>
+            <div class="context-info" id="contextInfo">Showing Full File</div>
+            <pre id="fileContent">Select a match to view file content</pre>
+        </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        // Simulated backend data with realistic content and close line numbers
+        const mockProjects = [
+            { id: 1, name: 'ECommerce Platform' },
+            { id: 2, name: 'Inventory Management' },
+            { id: 3, name: 'User Authentication' }
+        ];
+
+        const mockResults = [
+            {
+                "path": "src/utils/dateUtils.js",
+                "matches": [
+                    {
+                        "line": 12,
+                        "text": "function formatDate(date) { return date.toISOString(); }",
+                        "highlights": [{"start": 9, "end": 19}],
+                        "catalog": "Utilities",
+                        "level": "Info",
+                        "labels": ["date", "formatting"]
+                    },
+                    {
+                        "line": 15,
+                        "text": "const formattedDate = formatDate(new Date());",
+                        "highlights": [{"start": 22, "end": 32}],
+                        "catalog": "Utilities",
+                        "level": "Info",
+                        "labels": ["date", "formatting"]
+                    }
+                ]
+            },
+            {
+                "path": "src/components/ProductList.jsx",
+                "matches": [
+                    {
+                        "line": 45,
+                        "text": "const products = fetchProducts().map(item => formatDate(item.created));",
+                        "highlights": [{"start": 45, "end": 55}],
+                        "catalog": "Components",
+                        "level": "Warning",
+                        "labels": ["product", "formatting"]
+                    },
+                    {
+                        "line": 50,
+                        "text": "const formattedTime = formatDate(new Date());",
+                        "highlights": [{"start": 22, "end": 32}],
+                        "catalog": "Components",
+                        "level": "Info",
+                        "labels": ["date", "formatting"]
+                    }
+                ]
+            },
+            {
+                "path": "src/services/api.js",
+                "matches": [
+                    {
+                        "line": 23,
+                        "text": "export async function getUserData() { return await api.get('/users'); }",
+                        "highlights": [{"start": 29, "end": 39}],
+                        "catalog": "Services",
+                        "level": "Critical",
+                        "labels": ["api", "user"]
+                    }
+                ]
+            },
+            {
+                "path": "src/models/user.js",
+                "matches": [
+                    {
+                        "line": 8,
+                        "text": "class User { constructor(name) { this.name = name; } }",
+                        "highlights": [{"start": 6, "end": 10}],
+                        "catalog": "Models",
+                        "level": "Info",
+                        "labels": ["user", "model"]
+                    }
+                ]
+            }
+        ];
+
+        // Simulated file contents with more lines for context visibility
+        const mockFileContents = {
+            "src/utils/dateUtils.js": `// dateUtils.js
+import moment from 'moment';
+
+// Date parsing utilities
+export function parseDate(str) {
+    return moment(str).toDate();
+}
+
+// Date formatting utilities
+export function formatDate(date) {
+    // Utility for formatting dates
+    return date.toISOString();
+}
+
+// Additional date utilities
+export function getCurrentDate() {
+    const formattedDate = formatDate(new Date());
+    return formattedDate;
+}
+
+// Date validation
+export function isValidDate(date) {
+    return moment(date).isValid();
+}
+
+// Date comparison
+export function compareDates(date1, date2) {
+    return moment(date1).diff(moment(date2));
+}
+
+// Date formatting with locale
+export function formatDateWithLocale(date, locale) {
+    return moment(date).locale(locale).format('LL');
+}
+`,
+            "src/components/ProductList.jsx": `// ProductList.jsx
+import React from 'react';
+import { fetchProducts } from '../services/api';
+import { formatDate } from '../utils/dateUtils';
+
+// Component to display product list
+export default function ProductList() {
+    // Fetch products from API
+    const products = fetchProducts().map(item => ({
+        ...item,
+        created: formatDate(item.created)
+    }));
+
+    // Render product list
+    return (
+        <div>
+            {products.map(product => (
+                <div key={product.id}>{product.name} - {product.created}</div>
+            ))}
+        </div>
+    );
+}
+
+// Product list utilities
+function sortProducts(products) {
+    return products.sort((a, b) => a.price - b.price);
+}
+
+// Product display component
+function ProductDisplay({ product }) {
+    return <div>{product.name}</div>;
+}
+
+// Additional formatting
+const formattedTime = formatDate(new Date());
+console.log(formattedTime);
+
+// Product filter
+function filterProducts(products) {
+    return products.filter(p => p.active);
+}
+`,
+            "src/services/api.js": `// api.js
+import axios from 'axios';
+
+// API configuration
+const api = axios.create({
+    baseURL: '/api',
+    timeout: 5000
+});
+
+// User data API
+export async function getUserData() {
+    // Fetch user data from API
+    return await api.get('/users');
+}
+
+// Post user data
+export async function postUser(data) {
+    return await api.post('/users', data);
+}
+
+// Product data API
+export async function getProducts() {
+    return await api.get('/products');
+}
+`,
+            "src/models/user.js": `// user.js
+// User model definition
+export class User {
+    constructor(name, email) {
+        this.name = name;
+        this.email = email;
+    }
+
+    getDisplayName() {
+        return this.name.toUpperCase();
+    }
+
+    updateEmail(email) {
+        this.email = email;
+    }
+}
+`
+        };
+
+        $(document).ready(function() {
+            // Pagination state
+            const filesPerPage = 2;
+            let currentPage = 1;
+            let filteredResults = [];
+
+            // Initialize Select2 with custom styling
+            $('#projectSelect, #catalogFilter, #levelFilter, #labelFilter').select2({
+                placeholder: 'Select options',
+                allowClear: true,
+                theme: 'bootstrap-5',
+                closeOnSelect: false,
+                selectionCssClass: 'select2-selection--multiple',
+                dropdownCssClass: 'select2-dropdown--custom'
+            });
+
+            // Load projects
+            function loadProjects() {
+                $('#projectSelect').empty();
+                mockProjects.forEach(project => {
+                    $('#projectSelect').append(`<option value="${project.id}">${project.name}</option>`);
+                });
+            }
+
+            // Load filters and stats
+            function loadFiltersAndStats(results) {
+                const catalogs = new Set();
+                const levels = new Set();
+                const labels = new Set();
+
+                results.forEach(file => {
+                    file.matches.forEach(match => {
+                        if (match.catalog) catalogs.add(match.catalog);
+                        if (match.level) levels.add(match.level);
+                        match.labels.forEach(label => labels.add(label));
+                    });
+                });
+
+                $('#catalogFilter').empty().append('<option value="">All Catalogs</option>');
+                catalogs.forEach(c => $('#catalogFilter').append(`<option value="${c}">${c}</option>`));
+                $('#levelFilter').empty().append('<option value="">All Levels</option>');
+                levels.forEach(l => $('#levelFilter').append(`<option value="${l}">${l}</option>`));
+                $('#labelFilter').empty();
+                labels.forEach(l => $('#labelFilter').append(`<option value="${l}">${l}</option>`));
+
+                $('#fileCount').text(results.length);
+                $('#categoryCount').text(catalogs.size);
+                $('#levelCount').text(levels.size);
+                $('#labelCount').text(labels.size);
+            }
+
+            // Merge line ranges for context lines (middle panel only)
+            function mergeLineRanges(matches, contextLines, fileContent) {
+                const lines = fileContent.split('\n');
+                if (contextLines === 0) {
+                    return matches.map(match => ({
+                        start: match.line,
+                        end: match.line,
+                        matchLines: [match.line],
+                        texts: [match.text],
+                        highlightsArray: [match.highlights],
+                        catalogs: [match.catalog],
+                        levels: [match.level],
+                        labelsArray: [match.labels]
+                    }));
+                }
+
+                const ranges = matches.map(match => ({
+                    start: Math.max(1, match.line - contextLines),
+                    end: Math.min(lines.length, match.line + contextLines),
+                    matchLine: match.line,
+                    text: match.text,
+                    highlights: match.highlights,
+                    catalog: match.catalog,
+                    level: match.level,
+                    labels: match.labels
+                }));
+
+                ranges.sort((a, b) => a.start - b.start);
+
+                const merged = [];
+                let current = ranges[0];
+
+                for (let i = 1; i < ranges.length; i++) {
+                    if (ranges[i].start <= current.end + 1) {
+                        current.end = Math.max(current.end, ranges[i].end);
+                        current.matchLines = current.matchLines || [current.matchLine];
+                        current.matchLines.push(ranges[i].matchLine);
+                        current.texts = current.texts || [current.text];
+                        current.texts.push(ranges[i].text);
+                        current.highlightsArray = current.highlightsArray || [current.highlights];
+                        current.highlightsArray.push(ranges[i].highlights);
+                        current.catalogs = current.catalogs || [current.catalog];
+                        current.catalogs.push(ranges[i].catalog);
+                        current.levels = current.levels || [current.level];
+                        current.levels.push(ranges[i].level);
+                        current.labelsArray = current.labelsArray || [current.labels];
+                        current.labelsArray.push(ranges[i].labels);
+                    } else {
+                        merged.push(current);
+                        current = ranges[i];
+                    }
+                }
+                merged.push(current);
+
+                return merged.map(range => ({
+                    start: range.start,
+                    end: range.end,
+                    matchLines: range.matchLines || [range.matchLine],
+                    texts: range.texts || [range.text],
+                    highlightsArray: range.highlightsArray || [range.highlights],
+                    catalogs: range.catalogs || [range.catalog],
+                    levels: range.levels || [range.level],
+                    labelsArray: range.labelsArray || [range.labels]
+                }));
+            }
+
+            // Render middle panel with paginated results
+            function renderResults(results, page) {
+                $('#resultsContainer').empty();
+                if (results.length === 0) {
+                    $('#resultsContainer').html('<p class="text-muted">No results found</p>');
+                    $('#pagination').empty();
+                    return;
+                }
+
+                const contextLines = parseInt($('#contextLines').val()) || 0;
+                const startIndex = (page - 1) * filesPerPage;
+                const endIndex = Math.min(startIndex + filesPerPage, results.length);
+                const paginatedResults = results.slice(startIndex, endIndex);
+
+                paginatedResults.forEach(file => {
+                    const fileContent = mockFileContents[file.path] || '';
+                    const lines = fileContent.split('\n');
+                    const mergedRanges = mergeLineRanges(file.matches, contextLines, fileContent);
+                    const $fileGroup = $(`<div class="file-group"><h6>${file.path}</h6></div>`);
+
+                    mergedRanges.forEach(range => {
+                        const $contextGroup = $(`<div class="context-group"></div>`);
+                        for (let i = range.start - 1; i < range.end; i++) {
+                            const lineNum = i + 1;
+                            const lineText = lines[i] || '';
+                            const matchIndex = range.matchLines.indexOf(lineNum);
+                            let $line;
+                            if (matchIndex !== -1) {
+                                const highlightedText = highlightText(range.texts[matchIndex], range.highlightsArray[matchIndex]);
+                                $line = $(`
+                                    <div class="match-line" data-path="${file.path}" data-line="${lineNum}">
+                                        <span class="line-number">${lineNum}</span>
+                                        ${highlightedText}
+                                        <div class="text-muted small">Catalog: ${range.catalogs[matchIndex] || 'None'}, Level: ${range.levels[matchIndex] || 'None'}, Labels: ${range.labelsArray[matchIndex].join(', ')}</div>
+                                    </div>
+                                `);
+                            } else {
+                                $line = $(`
+                                    <div class="context-line" data-path="${file.path}" data-line="${lineNum}">
+                                        <span class="line-number">${lineNum}</span>
+                                        ${lineText}
+                                    </div>
+                                `);
+                            }
+                            $contextGroup.append($line);
+                        }
+                        $fileGroup.append($contextGroup);
+                    });
+                    $('#resultsContainer').append($fileGroup);
+                });
+
+                renderPagination(results.length, page);
+            }
+
+            // Render pagination controls
+            function renderPagination(totalFiles, currentPage) {
+                $('#pagination').empty();
+                const totalPages = Math.ceil(totalFiles / filesPerPage);
+                if (totalPages <= 1) return;
+
+                const $pagination = $('<ul class="pagination"></ul>');
+
+                // Previous button
+                $pagination.append(`
+                    <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" data-page="${currentPage - 1}">Previous</a>
+                    </li>
+                `);
+
+                // Page numbers
+                for (let i = 1; i <= totalPages; i++) {
+                    $pagination.append(`
+                        <li class="page-item ${i === currentPage ? 'active' : ''}">
+                            <a class="page-link" href="#" data-page="${i}">${i}</a>
+                        </li>
+                    `);
+                }
+
+                // Next button
+                $pagination.append(`
+                    <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                        <a class="page-link" href="#" data-page="${currentPage + 1}">Next</a>
+                    </li>
+                `);
+
+                $('#pagination').append($pagination);
+
+                // Handle page clicks
+                $('.page-link').on('click', function(e) {
+                    e.preventDefault();
+                    const page = parseInt($(this).data('page'));
+                    if (page >= 1 && page <= totalPages) {
+                        currentPage = page;
+                        renderResults(filteredResults, currentPage);
+                        $('.match-line, .context-line').removeClass('active');
+                        $('#fileContent').text('Select a match to view file content');
+                        $('#contextInfo').text('Showing Full File');
+                    }
+                });
+            }
+
+            // Highlight text
+            function highlightText(text, highlights) {
+                let result = text;
+                highlights.sort((a, b) => b.start - a.start);
+                highlights.forEach(h => {
+                    result = result.slice(0, h.start) + 
+                            `<span class="highlight">${result.slice(h.start, h.end)}</span>` + 
+                            result.slice(h.end);
+                });
+                return result;
+            }
+
+            // Show full file content in right panel
+            function showFileContent(path, line) {
+                const content = mockFileContents[path] || '// File content not available';
+                const lines = content.split('\n');
+                
+                let htmlContent = '';
+                lines.forEach((lineText, index) => {
+                    const lineNum = index + 1;
+                    const isMatch = lineNum === line;
+                    const lineClass = isMatch ? 'highlight' : '';
+                    htmlContent += `<div class="${lineClass}"><span class="line-number">${lineNum}</span>${lineText}</div>`;
+                });
+                
+                $('#fileContent').html(htmlContent);
+                $('#contextInfo').text('Showing Full File');
+                if (line) {
+                    const $highlight = $('#fileContent .highlight');
+                    if ($highlight.length) {
+                        $highlight[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            }
+
+            // Filter results
+            function filterResults(results) {
+                const pathFilter = ($('#pathFilter').val() || '').toLowerCase();
+                const catalogFilter = $('#catalogFilter').val() || [];
+                const levelFilter = $('#levelFilter').val() || [];
+                const labelFilter = $('#labelFilter').val() || [];
+
+                return results.filter(file => {
+                    if (pathFilter && !file.path.toLowerCase().includes(pathFilter)) {
+                        return false;
+                    }
+
+                    const filteredMatches = file.matches.filter(match => {
+                        const catalogMatch = catalogFilter.length === 0 || catalogFilter.includes(match.catalog);
+                        const levelMatch = levelFilter.length === 0 || levelFilter.includes(match.level);
+                        const labelMatch = labelFilter.length === 0 || labelFilter.every(label => match.labels.includes(label));
+
+                        return catalogMatch && levelMatch && labelMatch;
+                    });
+
+                    return filteredMatches.length > 0;
+                }).map(file => ({
+                    path: file.path,
+                    matches: file.matches.filter(match => {
+                        const catalogMatch = catalogFilter.length === 0 || catalogFilter.includes(match.catalog);
+                        const levelMatch = levelFilter.length === 0 || levelFilter.includes(match.level);
+                        const labelMatch = labelFilter.length === 0 || labelFilter.every(label => match.labels.includes(label));
+                        return catalogMatch && levelMatch && labelMatch;
+                    })
+                }));
+            }
+
+            // Event handlers
+            $('#loadProjects').click(function() {
+                const selectedProjects = $('#projectSelect').val();
+                if (selectedProjects.length) {
+                    filteredResults = mockResults;
+                    loadFiltersAndStats(filteredResults);
+                    currentPage = 1;
+                    renderResults(filteredResults, currentPage);
+                    $('#fileContent').text('Select a match to view file content');
+                    $('#contextInfo').text('Showing Full File');
+                } else {
+                    $('#resultsContainer').html('<p class="text-muted">Please select at least one project</p>');
+                    $('#pagination').empty();
+                    $('#fileContent').text('Select a match to view file content');
+                    $('#contextInfo').text('Showing Full File');
+                }
+            });
+
+            $('#applyFilters').click(function() {
+                filteredResults = filterResults(mockResults);
+                currentPage = 1;
+                renderResults(filteredResults, currentPage);
+            });
+
+            $('#contextLines').on('change', function() {
+                const contextLines = parseInt($(this).val()) || 0;
+                if (contextLines < 0) {
+                    $(this).val(0);
+                }
+                currentPage = 1;
+                renderResults(filteredResults, currentPage);
+                const $selectedMatch = $('.match-line.active, .context-line.active');
+                if ($selectedMatch.length) {
+                    const path = $selectedMatch.data('path');
+                    const line = parseInt($selectedMatch.data('line'));
+                    showFileContent(path, line);
+                }
+            });
+
+            $(document).on('click', '.match-line, .context-line', function(e) {
+                e.stopPropagation();
+                $('.match-line, .context-line').removeClass('active');
+                $(this).addClass('active');
+                const path = $(this).data('path');
+                const line = parseInt($(this).data('line'));
+                showFileContent(path, line);
+            });
+
+            // Initial load
+            loadProjects();
+        });
+    </script>
+</body>
+</html>
