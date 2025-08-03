@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <title>URL 路由 Tab（骨架屏+防抖）</title>
+  <title>菜单主页</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
@@ -18,6 +18,10 @@
     /* 骨架屏 */
     .skeleton{background:#e2e2e2;border-radius:4px;height:200px;width:100%;animation:fade 1.2s ease-in-out infinite}
     @keyframes fade{0%,100%{opacity:.7}50%{opacity:1}}
+    /* 多级菜单 */
+    .dropdown-submenu{position:relative}
+    .dropdown-submenu .dropdown-menu{top:0;left:100%;margin-top:-.125rem}
+    .dropdown-submenu:hover>.dropdown-menu{display:block}
   </style>
 </head>
 <body>
@@ -33,12 +37,13 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-/* 1️⃣ 菜单配置 */
+/* 1️⃣ 扁平多级菜单配置 */
 const menuItems = [
-  { key: 'home',  name: '首页',    url: 'home.html',   render: 'current' },
-  { key: 'services', name: '服务',  url: 'services.html',render: 'current' },
-  { key: 'about', name: '关于',    url: 'about.html',  render: 'iframe'  },
-  { key: 'docs',  name: '文档',    url: 'docs.html',   render: 'window'  }
+  { key: 'phone',  name: '电子/手机',  url: 'phone.html', render: 'current' },
+  { key: 'pc',     name: '电子/电脑',  url: 'pc.html',    render: 'iframe'  },
+  { key: 'ear',    name: '电子/配件/耳机', url: 'ear.html', render: 'current' },
+  { key: 'kb',     name: '电子/配件/键盘', url: 'kb.html',  render: 'current' },
+  { key: 'about',  name: '关于我们', url: 'about.html', render: 'current' }
 ];
 
 const openedTabs = new Set();
@@ -48,12 +53,33 @@ const cache = new Map(); // 缓存
 const getKey = () => decodeURIComponent(location.hash.replace('#/', ''));
 const setHash = key => history.replaceState(null, null, key ? '#/' + key : './');
 
-/* 3️⃣ 渲染菜单 */
-function renderMenu() {
+/* 3️⃣ 根据 name 扁平生成多级菜单 */
+function buildMenu() {
   const ul = document.getElementById('menuList');
-  menuItems.forEach(it => {
-    ul.insertAdjacentHTML('beforeend',
-      `<li><a class="dropdown-item" href="#/${it.key}" data-key="${it.key}">${it.name}</a></li>`);
+  const map = new Map(); // 父路径 -> ul 节点
+
+  menuItems.forEach(item => {
+    const parts = item.name.split('/');
+    let current = ul; // 根节点
+    let prefix = '';
+    for (let i = 0; i < parts.length - 1; i++) {
+      prefix = (prefix ? prefix + '/' : '') + parts[i];
+      if (!map.has(prefix)) {
+        // 创建父级
+        const li = document.createElement('li'); li.className = 'dropdown-submenu';
+        li.innerHTML = `<a class="dropdown-item dropdown-toggle" href="#">${parts[i]}</a>`;
+        const subUl = document.createElement('ul'); subUl.className = 'dropdown-menu';
+        li.appendChild(subUl);
+        current.appendChild(li);
+        map.set(prefix, subUl);
+        current = subUl;
+      } else {
+        current = map.get(prefix);
+      }
+    }
+    // 叶子节点
+    current.insertAdjacentHTML('beforeend',
+      `<li><a class="dropdown-item" href="#/${item.key}" data-key="${item.key}">${parts[parts.length - 1]}</a></li>`);
   });
 }
 
@@ -61,29 +87,21 @@ function renderMenu() {
 let hashTimer;
 function handleRoute() {
   clearTimeout(hashTimer);
-  hashTimer = setTimeout(() => {
-    const key = getKey();
-    if (!key) return;
-    openTab(key);
-  }, 150);
+  hashTimer = setTimeout(() => openTab(getKey()), 150);
 }
 
-/* 5️⃣ 打开/激活 tab */
 function openTab(key) {
   const item = menuItems.find(m => m.key === key);
   if (!item) return;
 
-  /* 已打开直接激活 */
   if (openedTabs.has(key)) {
     bootstrap.Tab.getInstance(document.querySelector(`#tab-${key}`)).show();
     return;
   }
 
   const skeleton = `<div class="skeleton"></div>`;
-
-  /* 新建 tab + 骨架屏 */
   const li = document.createElement('li'); li.className = 'nav-item';
-  li.innerHTML = `<button class="nav-link" id="tab-${key}" data-bs-toggle="tab" data-bs-target="#pane-${key}">${item.name}</button><span class="btn-close-inline" onclick="closeTab('${key}')"></span>`;
+  li.innerHTML = `<button class="nav-link" id="tab-${key}" data-bs-toggle="tab" data-bs-target="#pane-${key}">${item.name.split('/').pop()}</button><span class="btn-close-inline" onclick="closeTab('${key}')"></span>`;
   document.getElementById('mainTabs').appendChild(li);
 
   const pane = document.createElement('div'); pane.id = `pane-${key}`; pane.className = 'tab-pane fade';
@@ -92,7 +110,6 @@ function openTab(key) {
   new bootstrap.Tab(document.querySelector(`#tab-${key}`)).show();
   openedTabs.add(key);
 
-  /* 根据渲染方式加载内容 */
   if (item.render === 'iframe') {
     pane.innerHTML = `<iframe src="${item.url}" style="width:100%;border:none;" onload="this.style.height=this.contentWindow.document.body.scrollHeight+'px'"></iframe>`;
   } else {
@@ -103,13 +120,18 @@ function openTab(key) {
     }
     fetch(item.url)
       .then(r => { if (!r.ok) throw new Error('页面不存在'); return r.text(); })
-      .then(html => {
-        cache.set(item.url, html);
-        pane.innerHTML = html;
-        runScripts(pane);
-      })
+      .then(html => { cache.set(item.url, html); pane.innerHTML = html; runScripts(pane); })
       .catch(err => { pane.innerHTML = `<div class="alert alert-danger">${err.message}</div>`; });
   }
+}
+
+/* 5️⃣ 重新执行脚本 */
+function runScripts(container) {
+  container.querySelectorAll('script').forEach(old => {
+    const s = document.createElement('script');
+    old.src ? s.src = old.src : s.textContent = old.textContent;
+    document.head.appendChild(s); old.remove();
+  });
 }
 
 /* 6️⃣ 关闭 tab */
@@ -121,41 +143,16 @@ function closeTab(key) {
   setHash('');
 }
 
-/* 7️⃣ 重新执行脚本 */
-function runScripts(container) {
-  container.querySelectorAll('script').forEach(old => {
-    const s = document.createElement('script');
-    old.src ? s.src = old.src : s.textContent = old.textContent;
-    document.head.appendChild(s); old.remove();
-  });
-}
-
-/* 8️⃣ 路由监听 & 初始化 */
+/* 7️⃣ 路由 + 快捷键 */
 window.addEventListener('hashchange', handleRoute);
 window.addEventListener('load', handleRoute);
-
-/* 9️⃣ 菜单点击：window 则弹窗并清空 hash */
-document.addEventListener('click', e => {
-  if (!e.target.matches('.dropdown-item')) return;
-  e.preventDefault();
-  const key = e.target.dataset.key;
-  const item = menuItems.find(m => m.key === key);
-  if (item.render === 'window') {
-    window.open(item.url, '_blank');
-    setHash(''); // 清空 hash，防止刷新再触发
-    return;
-  }
-  location.hash = '#/' + key;
-});
-
-/* 🔟 Alt+数字快捷键 */
 window.addEventListener('keydown', e => {
   if (!e.altKey) return;
   const idx = parseInt(e.key) - 1;
   if (menuItems[idx]) location.hash = '#/' + menuItems[idx].key;
 });
 
-renderMenu();
+buildMenu();
 </script>
 </body>
 </html>
