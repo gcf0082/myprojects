@@ -56,10 +56,6 @@
     button:hover {
       background: #40a9ff;
     }
-    button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
     .success-tip {
       margin-top: 20px;
       padding: 12px;
@@ -167,7 +163,7 @@
 
     <div class="step hidden" id="scriptStep">
       <label for="scriptName">3. 输入触发脚本名称（必填）</label>
-      <input type="text" id="scriptName" placeholder="例如：restart_board_v2.py" />
+      <input type="text" id="scriptName" placeholder="" />
     </div>
 
     <div class="step hidden" id="scheduleStep">
@@ -175,7 +171,7 @@
       <input type="datetime-local" id="scheduleTime" />
     </div>
 
-    <button id="createBtn" class="hidden" disabled>创建任务</button>
+    <button id="createBtn" class="hidden">创建任务</button>
 
     <div class="success-tip" id="successTip">任务创建成功！已添加到下方任务列表。</div>
 
@@ -253,7 +249,7 @@
     const modalSchedule = document.getElementById('modalSchedule');
     const modalCreateTime = document.getElementById('modalCreateTime');
 
-    // 存储所有任务（任务ID仅内部使用）
+    // 存储所有任务
     let tasks = [];
 
     // 初始化网元
@@ -264,14 +260,6 @@
         option.textContent = `${ne.name} (${ne.id})`;
         neSelect.appendChild(option);
       });
-    }
-
-    // 检查创建按钮是否可用
-    function checkCreateButton() {
-      const hasNe = neSelect.value;
-      const hasAlarm = alarmSelect.value;
-      const hasScript = scriptNameInput.value.trim() !== '';
-      createBtn.disabled = !(hasNe && hasAlarm && hasScript);
     }
 
     // 网元选择
@@ -306,18 +294,27 @@
         scheduleStep.classList.add('hidden');
         createBtn.classList.add('hidden');
       }
-      checkCreateButton();
     });
 
-    scriptNameInput.addEventListener('input', checkCreateButton);
-
-    // 创建任务
+    // 创建任务（只在点击时校验）
     createBtn.addEventListener('click', function() {
-      if (createBtn.disabled) return;
+      // 基本必填校验
+      if (!neSelect.value || !alarmSelect.value || scriptNameInput.value.trim() === '') {
+        alert('请完整填写网元、告警和脚本名称！');
+        return;
+      }
 
+      const scriptName = scriptNameInput.value.trim();
+
+      // 关键校验：必须以 test_ 开头
+      if (!scriptName.startsWith('test_')) {
+        alert('脚本名称必须以 test_ 开头！');
+        return;
+      }
+
+      // 全部通过，创建任务
       const neName = neSelect.selectedOptions[0].textContent;
       const alarmName = alarmSelect.selectedOptions[0].textContent;
-      const scriptName = scriptNameInput.value.trim();
       const scheduleValue = scheduleTimeInput.value;
 
       const scheduleText = scheduleValue
@@ -325,9 +322,8 @@
         : "立即执行";
 
       const createTime = new Date().toLocaleString('zh-CN');
-      const taskId = 'TASK-' + Date.now();  // 内部生成的任务ID
+      const taskId = 'TASK-' + Date.now();
 
-      // 创建任务对象
       const task = {
         id: taskId,
         ne: neName,
@@ -361,7 +357,6 @@
 
       taskTableBody.appendChild(tr);
 
-      // 绑定查看详情事件
       tr.querySelector('.btn-detail').addEventListener('click', function() {
         const clickedTask = tasks.find(t => t.id === this.dataset.taskId);
         if (clickedTask) {
