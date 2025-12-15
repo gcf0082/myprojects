@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>网元告警触发任务管理</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: #f0f2f5;
+      padding: 20px;
+      margin: 0;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #1a1a1a;
+      margin-bottom: 30px;
+    }
+    .step {
+      margin-bottom: 30px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #333;
+    }
+    select, input[type="text"], input[type="datetime-local"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      box-sizing: border-box;
+      height: 44px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #1890ff;
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    button:hover {
+      background: #40a9ff;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .success-tip {
+      margin-top: 20px;
+      padding: 12px;
+      background: #f6ffed;
+      border: 1px solid #b7eb8f;
+      border-radius: 6px;
+      color: #52c41a;
+      text-align: center;
+      display: none;
+    }
+
+    /* 任务列表样式 */
+    h2 {
+      margin: 40px 0 20px;
+      color: #333;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    th {
+      background: #fafafa;
+      font-weight: bold;
+    }
+    .btn-detail {
+      background: #1890ff;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-detail:hover {
+      background: #40a9ff;
+    }
+
+    /* 模态弹框 */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      overflow-y: auto;
+    }
+    .modal-content {
+      background-color: #fff;
+      margin: 8% auto;
+      padding: 24px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close:hover {
+      color: #000;
+    }
+    .modal h3 {
+      margin-top: 0;
+      color: #1890ff;
+    }
+    .modal p {
+      margin: 12px 0;
+      font-size: 15px;
+    }
+    .modal strong {
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>创建网元告警触发任务</h1>
+
+    <!-- 创建任务表单 -->
+    <div class="step">
+      <label for="neSelect">1. 选择网元</label>
+      <select id="neSelect">
+        <option value="">-- 请选择网元 --</option>
+      </select>
+    </div>
+
+    <div class="step hidden" id="alarmStep">
+      <label for="alarmSelect">2. 选择该网元上的告警</label>
+      <select id="alarmSelect">
+        <option value="">-- 先选择网元 --</option>
+      </select>
+    </div>
+
+    <div class="step hidden" id="scriptStep">
+      <label for="scriptName">3. 输入触发脚本名称（必填）</label>
+      <input type="text" id="scriptName" placeholder="例如：restart_board_v2.py" />
+    </div>
+
+    <div class="step hidden" id="scheduleStep">
+      <label for="scheduleTime">4. 设置定时执行时间（可选，不填表示立即执行）</label>
+      <input type="datetime-local" id="scheduleTime" />
+    </div>
+
+    <button id="createBtn" class="hidden" disabled>创建任务</button>
+
+    <div class="success-tip" id="successTip">任务创建成功！已添加到下方任务列表。</div>
+
+    <!-- 任务列表（不显示任务ID） -->
+    <h2>任务列表</h2>
+    <table id="taskTable">
+      <thead>
+        <tr>
+          <th>网元</th>
+          <th>告警</th>
+          <th>脚本名称</th>
+          <th>定时时间</th>
+          <th>创建时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- 任务行将动态插入这里 -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 详情模态弹框（包含任务ID） -->
+  <div id="detailModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h3>任务详细信息</h3>
+      <p><strong>任务ID：</strong><span id="modalTaskId"></span></p>
+      <p><strong>网元：</strong><span id="modalNe"></span></p>
+      <p><strong>告警：</strong><span id="modalAlarm"></span></p>
+      <p><strong>脚本名称：</strong><span id="modalScript"></span></p>
+      <p><strong>定时时间：</strong><span id="modalSchedule"></span></p>
+      <p><strong>创建时间：</strong><span id="modalCreateTime"></span></p>
+    </div>
+  </div>
+
+  <script>
+    // 模拟数据
+    const mockData = {
+      networkElements: [
+        { id: "NE001", name: "基站A-北京朝阳" },
+        { id: "NE002", name: "基站B-上海浦东" },
+        { id: "NE003", name: "核心网元-广州核心机房" },
+        { id: "NE004", name: "传输设备-深圳骨干节点" },
+        { id: "NE005", name: "接入网关-杭州西湖" }
+      ],
+      alarms: {
+        NE001: [{ code: "ALM-1001", name: "电源故障" }, { code: "ALM-1005", name: "温度过高" }, { code: "ALM-1010", name: "链路中断" }],
+        NE002: [{ code: "ALM-2001", name: "风扇故障" }, { code: "ALM-2003", name: "板卡离位" }],
+        NE003: [{ code: "ALM-3001", name: "CPU占用率过高" }, { code: "ALM-3005", name: "内存泄漏" }, { code: "ALM-3010", name: "进程异常退出" }],
+        NE004: [{ code: "ALM-4002", name: "光模块故障" }, { code: "ALM-4008", name: "光功率异常" }],
+        NE005: [{ code: "ALM-5001", name: "用户会话异常" }, { code: "ALM-5005", name: "认证失败率高" }]
+      }
+    };
+
+    // DOM 元素
+    const neSelect = document.getElementById('neSelect');
+    const alarmStep = document.getElementById('alarmStep');
+    const alarmSelect = document.getElementById('alarmSelect');
+    const scriptStep = document.getElementById('scriptStep');
+    const scriptNameInput = document.getElementById('scriptName');
+    const scheduleStep = document.getElementById('scheduleStep');
+    const scheduleTimeInput = document.getElementById('scheduleTime');
+    const createBtn = document.getElementById('createBtn');
+    const successTip = document.getElementById('successTip');
+    const taskTableBody = document.querySelector('#taskTable tbody');
+
+    // 模态框元素
+    const modal = document.getElementById('detailModal');
+    const closeBtn = document.querySelector('.close');
+    const modalTaskId = document.getElementById('modalTaskId');
+    const modalNe = document.getElementById('modalNe');
+    const modalAlarm = document.getElementById('modalAlarm');
+    const modalScript = document.getElementById('modalScript');
+    const modalSchedule = document.getElementById('modalSchedule');
+    const modalCreateTime = document.getElementById('modalCreateTime');
+
+    // 存储所有任务（任务ID仅内部使用）
+    let tasks = [];
+
+    // 初始化网元
+    function initNetworkElements() {
+      mockData.networkElements.forEach(ne => {
+        const option = document.createElement('option');
+        option.value = ne.id;
+        option.textContent = `${ne.name} (${ne.id})`;
+        neSelect.appendChild(option);
+      });
+    }
+
+    // 检查创建按钮是否可用
+    function checkCreateButton() {
+      const hasNe = neSelect.value;
+      const hasAlarm = alarmSelect.value;
+      const hasScript = scriptNameInput.value.trim() !== '';
+      createBtn.disabled = !(hasNe && hasAlarm && hasScript);
+    }
+
+    // 网元选择
+    neSelect.addEventListener('change', function() {
+      const neId = this.value;
+      alarmSelect.innerHTML = '<option value="">-- 请选择告警 --</option>';
+      alarmStep.classList.add('hidden');
+      scriptStep.classList.add('hidden');
+      scheduleStep.classList.add('hidden');
+      createBtn.classList.add('hidden');
+      successTip.style.display = 'none';
+
+      if (neId && mockData.alarms[neId]) {
+        mockData.alarms[neId].forEach(alarm => {
+          const option = document.createElement('option');
+          option.value = alarm.code;
+          option.textContent = `${alarm.name} (${alarm.code})`;
+          alarmSelect.appendChild(option);
+        });
+        alarmStep.classList.remove('hidden');
+      }
+    });
+
+    // 告警选择
+    alarmSelect.addEventListener('change', function() {
+      if (this.value) {
+        scriptStep.classList.remove('hidden');
+        scheduleStep.classList.remove('hidden');
+        createBtn.classList.remove('hidden');
+      } else {
+        scriptStep.classList.add('hidden');
+        scheduleStep.classList.add('hidden');
+        createBtn.classList.add('hidden');
+      }
+      checkCreateButton();
+    });
+
+    scriptNameInput.addEventListener('input', checkCreateButton);
+
+    // 创建任务
+    createBtn.addEventListener('click', function() {
+      if (createBtn.disabled) return;
+
+      const neName = neSelect.selectedOptions[0].textContent;
+      const alarmName = alarmSelect.selectedOptions[0].textContent;
+      const scriptName = scriptNameInput.value.trim();
+      const scheduleValue = scheduleTimeInput.value;
+
+      const scheduleText = scheduleValue
+        ? new Date(scheduleValue).toLocaleString('zh-CN')
+        : "立即执行";
+
+      const createTime = new Date().toLocaleString('zh-CN');
+      const taskId = 'TASK-' + Date.now();  // 内部生成的任务ID
+
+      // 创建任务对象
+      const task = {
+        id: taskId,
+        ne: neName,
+        alarm: alarmName,
+        script: scriptName,
+        schedule: scheduleText,
+        createTime: createTime
+      };
+
+      tasks.push(task);
+      addTaskToTable(task);
+
+      successTip.style.display = 'block';
+      setTimeout(() => { successTip.style.display = 'none'; }, 3000);
+
+      document.querySelector('h2').scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // 添加任务到表格（不显示任务ID）
+    function addTaskToTable(task) {
+      const tr = document.createElement('tr');
+
+      tr.innerHTML = `
+        <td>${task.ne.split(' (')[0]}</td>
+        <td>${task.alarm.split(' (')[0]}</td>
+        <td>${task.script}</td>
+        <td>${task.schedule}</td>
+        <td>${task.createTime}</td>
+        <td><button class="btn-detail" data-task-id="${task.id}">查看详情</button></td>
+      `;
+
+      taskTableBody.appendChild(tr);
+
+      // 绑定查看详情事件
+      tr.querySelector('.btn-detail').addEventListener('click', function() {
+        const clickedTask = tasks.find(t => t.id === this.dataset.taskId);
+        if (clickedTask) {
+          showTaskDetail(clickedTask);
+        }
+      });
+    }
+
+    // 显示任务详情（包含任务ID）
+    function showTaskDetail(task) {
+      modalTaskId.textContent = task.id;
+      modalNe.textContent = task.ne;
+      modalAlarm.textContent = task.alarm;
+      modalScript.textContent = task.script;
+      modalSchedule.textContent = task.schedule;
+      modalCreateTime.textContent = task.createTime;
+
+      modal.style.display = 'block';
+    }
+
+    // 关闭模态框
+    closeBtn.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+
+    window.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+
+    // 初始化
+    window.onload = function() {
+      initNetworkElements();
+
+      // 默认定时时间为当前时间 + 10分钟
+      const now = new Date();
+      now.setMinutes(now.getMinutes() + 10);
+      scheduleTimeInput.value = now.toISOString().slice(0, 16);
+    };
+  </script>
+</body>
+</html>
