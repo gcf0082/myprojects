@@ -66,8 +66,15 @@
       text-align: center;
       display: none;
     }
+    .loading {
+      color: #999;
+      font-style: italic;
+    }
+    .error {
+      color: #f5222d;
+      font-style: italic;
+    }
 
-    /* 任务列表样式 */
     h2 {
       margin: 40px 0 20px;
       color: #333;
@@ -98,7 +105,6 @@
       background: #40a9ff;
     }
 
-    /* 模态弹框 */
     .modal {
       display: none;
       position: fixed;
@@ -108,7 +114,6 @@
       width: 100%;
       height: 100%;
       background-color: rgba(0,0,0,0.5);
-      overflow-y: auto;
     }
     .modal-content {
       background-color: #fff;
@@ -133,30 +138,22 @@
       margin-top: 0;
       color: #1890ff;
     }
-    .modal p {
-      margin: 12px 0;
-      font-size: 15px;
-    }
-    .modal strong {
-      color: #333;
-    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>创建网元告警触发任务</h1>
 
-    <!-- 创建任务表单 -->
     <div class="step">
-      <label for="neSelect">1. 选择网元</label>
-      <select id="neSelect">
-        <option value="">-- 请选择网元 --</option>
+      <label for="neSelect">1. 选择网元 <span id="neStatus" class="loading">(加载中...)</span></label>
+      <select id="neSelect" disabled>
+        <option value="">-- 加载中，请稍候 --</option>
       </select>
     </div>
 
     <div class="step hidden" id="alarmStep">
-      <label for="alarmSelect">2. 选择该网元上的告警</label>
-      <select id="alarmSelect">
+      <label for="alarmSelect">2. 选择该网元上的告警 <span id="alarmStatus" class="loading"></span></label>
+      <select id="alarmSelect" disabled>
         <option value="">-- 先选择网元 --</option>
       </select>
     </div>
@@ -171,11 +168,10 @@
       <input type="datetime-local" id="scheduleTime" />
     </div>
 
-    <button id="createBtn" class="hidden">创建任务</button>
+    <button id="createBtn" class="hidden" disabled>创建任务</button>
 
-    <div class="success-tip" id="successTip">任务创建成功！已添加到下方任务列表。</div>
+    <div class="success-tip" id="successTip">任务创建成功！任务列表已刷新。</div>
 
-    <!-- 任务列表（不显示任务ID） -->
     <h2>任务列表</h2>
     <table id="taskTable">
       <thead>
@@ -188,13 +184,11 @@
           <th>操作</th>
         </tr>
       </thead>
-      <tbody>
-        <!-- 任务行将动态插入这里 -->
-      </tbody>
+      <tbody></tbody>
     </table>
   </div>
 
-  <!-- 详情模态弹框（包含任务ID） -->
+  <!-- 任务详情模态框 -->
   <div id="detailModal" class="modal">
     <div class="modal-content">
       <span class="close">&times;</span>
@@ -209,28 +203,13 @@
   </div>
 
   <script>
-    // 模拟数据
-    const mockData = {
-      networkElements: [
-        { id: "NE001", name: "基站A-北京朝阳" },
-        { id: "NE002", name: "基站B-上海浦东" },
-        { id: "NE003", name: "核心网元-广州核心机房" },
-        { id: "NE004", name: "传输设备-深圳骨干节点" },
-        { id: "NE005", name: "接入网关-杭州西湖" }
-      ],
-      alarms: {
-        NE001: [{ code: "ALM-1001", name: "电源故障" }, { code: "ALM-1005", name: "温度过高" }, { code: "ALM-1010", name: "链路中断" }],
-        NE002: [{ code: "ALM-2001", name: "风扇故障" }, { code: "ALM-2003", name: "板卡离位" }],
-        NE003: [{ code: "ALM-3001", name: "CPU占用率过高" }, { code: "ALM-3005", name: "内存泄漏" }, { code: "ALM-3010", name: "进程异常退出" }],
-        NE004: [{ code: "ALM-4002", name: "光模块故障" }, { code: "ALM-4008", name: "光功率异常" }],
-        NE005: [{ code: "ALM-5001", name: "用户会话异常" }, { code: "ALM-5005", name: "认证失败率高" }]
-      }
-    };
+    const API_BASE = 'https://gcf0082.pythonanywhere.com';
 
-    // DOM 元素
     const neSelect = document.getElementById('neSelect');
+    const neStatus = document.getElementById('neStatus');
     const alarmStep = document.getElementById('alarmStep');
     const alarmSelect = document.getElementById('alarmSelect');
+    const alarmStatus = document.getElementById('alarmStatus');
     const scriptStep = document.getElementById('scriptStep');
     const scriptNameInput = document.getElementById('scriptName');
     const scheduleStep = document.getElementById('scheduleStep');
@@ -239,7 +218,6 @@
     const successTip = document.getElementById('successTip');
     const taskTableBody = document.querySelector('#taskTable tbody');
 
-    // 模态框元素
     const modal = document.getElementById('detailModal');
     const closeBtn = document.querySelector('.close');
     const modalTaskId = document.getElementById('modalTaskId');
@@ -249,36 +227,122 @@
     const modalSchedule = document.getElementById('modalSchedule');
     const modalCreateTime = document.getElementById('modalCreateTime');
 
-    // 存储所有任务
     let tasks = [];
 
-    // 初始化网元
-    function initNetworkElements() {
-      mockData.networkElements.forEach(ne => {
+    // 加载网元列表（必须成功）
+    async function loadNetworkElements() {
+      neStatus.textContent = '(加载中...)';
+      neStatus.className = 'loading';
+      try {
+        const response = await fetch(`${API_BASE}/rest/networkElements`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        neSelect.innerHTML = '<option value="">-- 请选择网元 --</option>';
+        populateSelect(neSelect, data, 'id', 'name');
+        neSelect.disabled = false;
+        neStatus.textContent = '';
+      } catch (err) {
+        neStatus.textContent = '(加载失败，请刷新页面重试)';
+        neStatus.className = 'error';
+        neSelect.disabled = true;
+        alert('无法加载网元列表，请检查网络或联系管理员。');
+      }
+    }
+
+    // 加载告警
+    async function loadAlarms(neId) {
+      alarmStatus.textContent = '(加载中...)';
+      alarmStatus.className = 'loading';
+      alarmSelect.innerHTML = '<option value="">-- 加载中 --</option>';
+      alarmSelect.disabled = true;
+      try {
+        const response = await fetch(`${API_BASE}/rest/alarms?neId=${neId}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        alarmSelect.innerHTML = '<option value="">-- 请选择告警 --</option>';
+        populateSelect(alarmSelect, data, 'code', 'name');
+        alarmSelect.disabled = false;
+        alarmStatus.textContent = '';
+      } catch (err) {
+        alarmStatus.textContent = '(加载失败)';
+        alarmStatus.className = 'error';
+        alarmSelect.disabled = true;
+        alert('无法加载该网元告警列表，请重试或联系管理员。');
+      }
+    }
+
+    function populateSelect(selectEl, items, valueKey, textKey) {
+      items.forEach(item => {
         const option = document.createElement('option');
-        option.value = ne.id;
-        option.textContent = `${ne.name} (${ne.id})`;
-        neSelect.appendChild(option);
+        option.value = item[valueKey];
+        option.textContent = `${item[textKey]} (${item[valueKey]})`;
+        selectEl.appendChild(option);
       });
     }
 
+    // 刷新任务列表
+    async function refreshTaskList() {
+      taskTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">加载中...</td></tr>';
+      try {
+        const response = await fetch(`${API_BASE}/rest/queryTasks`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const taskList = await response.json();
+
+        tasks = taskList.map(t => ({
+          id: t.taskId,
+          ne: t.neName || '未知网元',
+          alarm: t.alarmName || '未知告警',
+          script: t.scriptName,
+          schedule: t.scheduleTime ? new Date(t.scheduleTime).toLocaleString('zh-CN') : '立即执行',
+          createTime: new Date(t.createTime).toLocaleString('zh-CN')
+        }));
+
+        taskTableBody.innerHTML = '';
+        tasks.forEach(addTaskToTable);
+        if (tasks.length === 0) {
+          taskTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;">暂无任务</td></tr>';
+        }
+      } catch (err) {
+        taskTableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#f5222d;">加载任务列表失败</td></tr>';
+      }
+    }
+
+    function addTaskToTable(task) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${task.ne.split(' (')[0]}</td>
+        <td>${task.alarm.split(' (')[0]}</td>
+        <td>${task.script}</td>
+        <td>${task.schedule}</td>
+        <td>${task.createTime}</td>
+        <td><button class="btn-detail" data-task-id="${task.id}">查看详情</button></td>
+      `;
+      taskTableBody.appendChild(tr);
+      tr.querySelector('.btn-detail').addEventListener('click', () => showTaskDetail(task));
+    }
+
+    function showTaskDetail(task) {
+      modalTaskId.textContent = task.id;
+      modalNe.textContent = task.ne;
+      modalAlarm.textContent = task.alarm;
+      modalScript.textContent = task.script;
+      modalSchedule.textContent = task.schedule;
+      modalCreateTime.textContent = task.createTime;
+      modal.style.display = 'block';
+    }
+
     // 网元选择
-    neSelect.addEventListener('change', function() {
+    neSelect.addEventListener('change', async function() {
       const neId = this.value;
-      alarmSelect.innerHTML = '<option value="">-- 请选择告警 --</option>';
       alarmStep.classList.add('hidden');
       scriptStep.classList.add('hidden');
       scheduleStep.classList.add('hidden');
       createBtn.classList.add('hidden');
+      createBtn.disabled = true;
       successTip.style.display = 'none';
 
-      if (neId && mockData.alarms[neId]) {
-        mockData.alarms[neId].forEach(alarm => {
-          const option = document.createElement('option');
-          option.value = alarm.code;
-          option.textContent = `${alarm.name} (${alarm.code})`;
-          alarmSelect.appendChild(option);
-        });
+      if (neId) {
+        await loadAlarms(neId);
         alarmStep.classList.remove('hidden');
       }
     });
@@ -289,113 +353,69 @@
         scriptStep.classList.remove('hidden');
         scheduleStep.classList.remove('hidden');
         createBtn.classList.remove('hidden');
+        createBtn.disabled = false;
       } else {
         scriptStep.classList.add('hidden');
         scheduleStep.classList.add('hidden');
         createBtn.classList.add('hidden');
+        createBtn.disabled = true;
       }
     });
 
-    // 创建任务（只在点击时校验）
-    createBtn.addEventListener('click', function() {
-      // 基本必填校验
-      if (!neSelect.value || !alarmSelect.value || scriptNameInput.value.trim() === '') {
-        alert('请完整填写网元、告警和脚本名称！');
+    // 创建任务
+    createBtn.addEventListener('click', async function() {
+      if (!neSelect.value || !alarmSelect.value || !scriptNameInput.value.trim()) {
+        alert('请完整填写必填项！');
         return;
       }
 
-      const scriptName = scriptNameInput.value.trim();
-
-      // 关键校验：必须以 test_ 开头
-      if (!scriptName.startsWith('test_')) {
-        alert('脚本名称必须以 test_ 开头！');
-        return;
-      }
-
-      // 全部通过，创建任务
-      const neName = neSelect.selectedOptions[0].textContent;
-      const alarmName = alarmSelect.selectedOptions[0].textContent;
-      const scheduleValue = scheduleTimeInput.value;
-
-      const scheduleText = scheduleValue
-        ? new Date(scheduleValue).toLocaleString('zh-CN')
-        : "立即执行";
-
-      const createTime = new Date().toLocaleString('zh-CN');
-      const taskId = 'TASK-' + Date.now();
-
-      const task = {
-        id: taskId,
-        ne: neName,
-        alarm: alarmName,
-        script: scriptName,
-        schedule: scheduleText,
-        createTime: createTime
+      const payload = {
+        neId: neSelect.value,
+        neName: neSelect.selectedOptions[0].textContent,
+        alarmCode: alarmSelect.value,
+        alarmName: alarmSelect.selectedOptions[0].textContent,
+        scriptName: scriptNameInput.value.trim(),
+        scheduleTime: scheduleTimeInput.value || null
       };
 
-      tasks.push(task);
-      addTaskToTable(task);
+      try {
+        const response = await fetch(`${API_BASE}/rest/createTask`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
 
-      successTip.style.display = 'block';
-      setTimeout(() => { successTip.style.display = 'none'; }, 3000);
+        const result = await response.json();
 
-      document.querySelector('h2').scrollIntoView({ behavior: 'smooth' });
-    });
-
-    // 添加任务到表格（不显示任务ID）
-    function addTaskToTable(task) {
-      const tr = document.createElement('tr');
-
-      tr.innerHTML = `
-        <td>${task.ne.split(' (')[0]}</td>
-        <td>${task.alarm.split(' (')[0]}</td>
-        <td>${task.script}</td>
-        <td>${task.schedule}</td>
-        <td>${task.createTime}</td>
-        <td><button class="btn-detail" data-task-id="${task.id}">查看详情</button></td>
-      `;
-
-      taskTableBody.appendChild(tr);
-
-      tr.querySelector('.btn-detail').addEventListener('click', function() {
-        const clickedTask = tasks.find(t => t.id === this.dataset.taskId);
-        if (clickedTask) {
-          showTaskDetail(clickedTask);
+        if (!response.ok) {
+          throw new Error(result.message || '创建任务失败');
         }
-      });
-    }
 
-    // 显示任务详情（包含任务ID）
-    function showTaskDetail(task) {
-      modalTaskId.textContent = task.id;
-      modalNe.textContent = task.ne;
-      modalAlarm.textContent = task.alarm;
-      modalScript.textContent = task.script;
-      modalSchedule.textContent = task.schedule;
-      modalCreateTime.textContent = task.createTime;
+        successTip.style.display = 'block';
+        setTimeout(() => successTip.style.display = 'none', 3000);
 
-      modal.style.display = 'block';
-    }
+        await refreshTaskList();
 
-    // 关闭模态框
-    closeBtn.addEventListener('click', () => {
-      modal.style.display = 'none';
-    });
+        document.querySelector('h2').scrollIntoView({ behavior: 'smooth' });
 
-    window.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        modal.style.display = 'none';
+      } catch (err) {
+        alert(err.message || '创建任务失败，请检查输入或网络');
       }
     });
 
-    // 初始化
-    window.onload = function() {
-      initNetworkElements();
+    // 模态框关闭
+    closeBtn.onclick = () => modal.style.display = 'none';
+    window.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 
-      // 默认定时时间为当前时间 + 10分钟
+    // 页面初始化
+    window.onload = async function() {
+      await loadNetworkElements();
+
       const now = new Date();
       now.setMinutes(now.getMinutes() + 10);
       scheduleTimeInput.value = now.toISOString().slice(0, 16);
+
+      await refreshTaskList();
     };
   </script>
 </body>
